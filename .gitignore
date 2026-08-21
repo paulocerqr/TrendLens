@@ -1,0 +1,20 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime output
+*.log
+logs/
+tmp/
+coverage/
+
+# Editor and operating system files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

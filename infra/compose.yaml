@@ -1,0 +1,40 @@
+name: trendlens
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: trendlens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trendlens}
+      POSTGRES_USER: ${POSTGRES_USER:-trendlens_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      TZ: ${TZ:-America/Sao_Paulo}
+    expose:
+      - "5432"
+    volumes:
+      - trendlens_postgres_data:/var/lib/postgresql/data
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ../database/indexes.sql:/docker-entrypoint-initdb.d/002-indexes.sql:ro
+      - ../database/seeds/categories.sql:/docker-entrypoint-initdb.d/003-categories.sql:ro
+      - ../database/seeds/settings.sql:/docker-entrypoint-initdb.d/004-settings.sql:ro
+      - ../tests:/workspace/tests:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - trendlens_backend
+
+volumes:
+  trendlens_postgres_data:
+    name: trendlens_postgres_data
+
+networks:
+  trendlens_backend:
+    name: trendlens_backend
+    driver: bridge
