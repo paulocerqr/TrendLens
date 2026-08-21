@@ -12,6 +12,10 @@ CREATE INDEX IF NOT EXISTS collection_queries_active_priority_idx
     ON collection_queries (is_active, priority, id)
     WHERE is_active;
 
+CREATE INDEX IF NOT EXISTS collection_queries_collection_schedule_idx
+    ON collection_queries (last_collected_at ASC NULLS FIRST, priority, id)
+    WHERE is_active;
+
 CREATE INDEX IF NOT EXISTS videos_published_at_idx
     ON videos (published_at DESC);
 

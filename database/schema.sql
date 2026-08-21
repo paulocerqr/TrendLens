@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS collection_queries (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     priority SMALLINT NOT NULL DEFAULT 100,
     max_results_override INTEGER,
+    last_collected_at TIMESTAMPTZ,
+    last_status TEXT,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    total_runs BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT collection_queries_query_text_check
@@ -52,7 +56,13 @@ CREATE TABLE IF NOT EXISTS collection_queries (
     CONSTRAINT collection_queries_priority_check
         CHECK (priority >= 0),
     CONSTRAINT collection_queries_max_results_check
-        CHECK (max_results_override IS NULL OR max_results_override > 0)
+        CHECK (max_results_override IS NULL OR max_results_override > 0),
+    CONSTRAINT collection_queries_last_status_check
+        CHECK (last_status IS NULL OR last_status IN ('success', 'partial', 'failed', 'skipped')),
+    CONSTRAINT collection_queries_consecutive_failures_check
+        CHECK (consecutive_failures >= 0),
+    CONSTRAINT collection_queries_total_runs_check
+        CHECK (total_runs >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS videos (

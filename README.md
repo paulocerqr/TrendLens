@@ -64,6 +64,32 @@ O teste roda dentro de uma transação e desfaz os dados temporários ao termina
 
 Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apenas quando o volume do PostgreSQL está vazio. Mudanças futuras em bancos existentes deverão ser aplicadas por migrations versionadas.
 
+## Atualização de um banco existente
+
+Depois de atualizar o repositório para a Fase 2, aplique a migration e os seeds idempotentes:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/002_youtube_collector.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/seeds/settings.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/seeds/collection_queries.sql
+```
+
+Valide a configuração:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/youtube-collector-foundation.sql
+```
+
 ## Integração com um n8n existente
 
 No servidor de deployment, o container n8n deverá participar da rede externa `trendlens_backend`. A credencial PostgreSQL deve ser criada na interface do n8n, sem versionar ou inserir a senha em workflows.
@@ -110,6 +136,7 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 - [Arquitetura](docs/architecture.md)
 - [Modelo de dados](docs/data-model.md)
+- [Metodologia](docs/methodology.md)
 - [Limitações](docs/limitations.md)
 
 ## Roadmap resumido

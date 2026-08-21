@@ -18,6 +18,7 @@ services:
       - ../database/indexes.sql:/docker-entrypoint-initdb.d/002-indexes.sql:ro
       - ../database/seeds/categories.sql:/docker-entrypoint-initdb.d/003-categories.sql:ro
       - ../database/seeds/settings.sql:/docker-entrypoint-initdb.d/004-settings.sql:ro
+      - ../database/seeds/collection_queries.sql:/docker-entrypoint-initdb.d/005-collection-queries.sql:ro
       - ../tests:/workspace/tests:ro
     healthcheck:
       test:
