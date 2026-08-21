@@ -231,7 +231,11 @@ CREATE TABLE IF NOT EXISTS video_classifications (
     CONSTRAINT video_classifications_reused_risk_check
         CHECK (reused_content_risk BETWEEN 0 AND 1),
     CONSTRAINT video_classifications_confidence_check
-        CHECK (ai_confidence BETWEEN 0 AND 1)
+        CHECK (ai_confidence BETWEEN 0 AND 1),
+    CONSTRAINT video_classifications_model_check
+        CHECK (length(btrim(classification_model)) > 0),
+    CONSTRAINT video_classifications_prompt_version_check
+        CHECK (length(btrim(prompt_version)) > 0)
 );
 
 CREATE TABLE IF NOT EXISTS video_metrics (
@@ -456,6 +460,56 @@ CREATE TABLE IF NOT EXISTS video_collection_matches (
     CONSTRAINT video_collection_matches_search_rank_check
         CHECK (search_rank > 0)
 );
+
+CREATE OR REPLACE FUNCTION select_classification_candidates(
+    p_limit INTEGER,
+    p_description_max_chars INTEGER
+)
+RETURNS TABLE (
+    video_id BIGINT,
+    external_id TEXT,
+    channel_name TEXT,
+    title TEXT,
+    description TEXT,
+    published_at TIMESTAMPTZ,
+    duration_seconds INTEGER,
+    language VARCHAR(16),
+    region CHAR(2),
+    short_confidence TEXT,
+    category_hints JSONB
+)
+LANGUAGE sql
+STABLE
+AS $$
+SELECT
+    v.id AS video_id,
+    v.external_id,
+    v.channel_name,
+    v.title,
+    left(COALESCE(v.description, ''), GREATEST(p_description_max_chars, 0)) AS description,
+    v.published_at,
+    v.duration_seconds,
+    v.language,
+    v.region,
+    v.short_confidence,
+    COALESCE(hints.category_hints, '[]'::jsonb) AS category_hints
+  FROM videos v
+  LEFT JOIN LATERAL (
+      SELECT jsonb_agg(DISTINCT c.slug ORDER BY c.slug) AS category_hints
+        FROM video_collection_matches m
+        JOIN collection_queries q ON q.id = m.collection_query_id
+        JOIN categories c ON c.id = q.category_id
+       WHERE m.video_id = v.id
+  ) hints ON TRUE
+ WHERE v.platform = 'youtube'
+   AND NOT EXISTS (
+       SELECT 1
+         FROM video_classifications classification
+        WHERE classification.video_id = v.id
+   )
+ ORDER BY v.published_at DESC, v.id
+ LIMIT GREATEST(p_limit, 0);
+$$;
 
 DROP TRIGGER IF EXISTS categories_set_updated_at ON categories;
 CREATE TRIGGER categories_set_updated_at

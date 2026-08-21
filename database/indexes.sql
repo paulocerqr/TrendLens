@@ -44,6 +44,9 @@ CREATE INDEX IF NOT EXISTS video_classifications_dimensions_idx
         source_type
     );
 
+CREATE INDEX IF NOT EXISTS video_classifications_classified_at_idx
+    ON video_classifications (classified_at DESC);
+
 CREATE INDEX IF NOT EXISTS video_metrics_video_calculated_idx
     ON video_metrics (video_id, calculated_at DESC);
 
