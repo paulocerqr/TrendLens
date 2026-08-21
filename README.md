@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-A Fase 1 foi concluída. A Fase 2 está em implementação: o collector do YouTube foi criado e validado no n8n, com configuração no PostgreSQL, coleta em lote, deduplicação, primeiro snapshot, proveniência amostral e observabilidade. A primeira execução real limitada será registrada após a migration de proveniência ser aplicada no servidor.
+A Fase 1 foi concluída. A Fase 2 está em implementação: o collector do YouTube foi criado e validado no n8n, com configuração no PostgreSQL, coleta em lote, deduplicação, primeiro snapshot, proveniência amostral e observabilidade. A execução real limitada confirmou o fluxo completo contra a YouTube Data API e o PostgreSQL do TrendLens.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -130,6 +130,20 @@ O workflow `00 - TrendLens - PostgreSQL Smoke Test` foi executado com sucesso co
 O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workflows/00-postgresql-smoke-test.json).
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json).
+
+## Validação do collector
+
+O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi testado manualmente. A execução de validação final processou quatro combinações de query e grupo amostral:
+
+- 100 resultados recebidos;
+- 100 itens processados;
+- 99 vídeos novos e 1 duplicado;
+- 100 correspondências de proveniência registradas;
+- 99 snapshots históricos inseridos;
+- 8 chamadas de API e 4 unidades estimadas no bucket de busca;
+- nenhum item ignorado e nenhum erro.
+
+Os contadores foram persistidos em `pipeline_runs`. O resultado reflete apenas essa execução de teste e não constitui uma análise de tendências.
 
 ## Segurança
 

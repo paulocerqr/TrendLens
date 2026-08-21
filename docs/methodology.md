@@ -68,4 +68,8 @@ Referências:
 
 ## Primeira execução real
 
-A primeira execução será manual e limitada. O objetivo será validar credencial, formato das respostas, normalização, upsert, primeiro snapshot e logs. O workflow permanecerá inativo até revisão explícita.
+As primeiras execuções foram manuais e limitadas a quatro combinações de query e grupo amostral, com até 25 resultados por busca. Elas validaram a credencial OAuth, o formato das respostas, a normalização, o upsert, o primeiro snapshot, a proveniência e os logs.
+
+A validação final recebeu 100 resultados, processou todos sem erro, registrou 99 vídeos novos, 1 duplicado, 100 correspondências de proveniência e 99 snapshots. O workflow permanece inativo até revisão explícita.
+
+Durante o teste, a passagem do timestamp do PostgreSQL pelo n8n revelou perda de precisão abaixo de milissegundos. A persistência passou a obter `pipeline_runs.started_at` diretamente do banco para manter uma chave temporal idêntica entre execução e snapshots. A finalização também usa uma referência explícita ao node inicial, pois a saída concluída do loop não preserva necessariamente o item de contexto.
