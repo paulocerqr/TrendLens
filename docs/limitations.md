@@ -8,6 +8,8 @@
 - A estimativa de quota armazenada em `pipeline_runs` dependerá da contabilização implementada pelo collector.
 - O Schedule Trigger do Snapshot Tracker verifica candidatos a cada 15 minutos; os intervalos efetivos por vídeo são aplicados pelo PostgreSQL e podem ter atraso de até um ciclo de verificação.
 - Execuções simultâneas do Snapshot Tracker não são coordenadas por um lock distribuído no MVP. A operação é idempotente para o mesmo vídeo e instante de execução, mas dois runs iniciados em instantes diferentes podem coletar observações muito próximas.
+- Execuções simultâneas do AI Content Classifier podem selecionar os mesmos candidatos; a chave primária por vídeo impede duplicação, mas uma das execuções será contabilizada como ignorada após consumir uma chamada ao modelo.
+- Latência e disponibilidade do provedor NVIDIA podem produzir timeouts. O workflow limita retries, registra a falha e continua, mas não mantém uma fila explícita de tentativas por vídeo.
 
 ## Dados e metodologia
 
@@ -17,6 +19,7 @@
 - Views e engajamento não representam receita.
 - Não há acesso ao algoritmo interno do YouTube nem à receita real dos criadores.
 - Copyright, conteúdo reutilizado e elegibilidade de monetização serão riscos heurísticos, não decisões oficiais.
+- A classificação usa metadados, não analisa frames, áudio ou transcrição; portanto origem, estilo, hook e riscos podem ter confiança limitada.
 - Correlação entre características e desempenho não implica causalidade.
 - Métricas ausentes não devem ser convertidas automaticamente em zero.
 - Resultados só podem ser comparados dentro de contextos compatíveis de plataforma, região, período e amostra.

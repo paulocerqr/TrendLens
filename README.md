@@ -106,6 +106,14 @@ docker compose exec -T postgres sh -c \
   < tests/sql/video-snapshot-tracker.sql
 ```
 
+Valide a fundação do AI Content Classifier:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/ai-content-classifier.sql
+```
+
 ## Integração com um n8n existente
 
 No servidor de deployment, o container n8n deverá participar da rede externa `trendlens_backend`. A credencial PostgreSQL deve ser criada na interface do n8n, sem versionar ou inserir a senha em workflows.
@@ -145,6 +153,8 @@ O collector exportado, sem associações de credenciais, está em [workflows/01-
 
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow validado no deployment original possui ID `LTjMbH3UGW994lCA` e permanece inativo.
 
+O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow no deployment original possui ID `86iKeeCFXiiX3fki`, permanece inativo e não foi publicado.
+
 ## Validação do collector
 
 O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi testado manualmente. A execução de validação final processou quatro combinações de query e grupo amostral:
@@ -182,6 +192,25 @@ A primeira execução manual integrada aplicou a migration, selecionou 149 víde
 - duração total de 1,685 segundo.
 
 Uma segunda execução imediata selecionou zero vídeos, não chamou a API e finalizou com sucesso. Isso confirmou que os snapshots recém-inseridos passaram a controlar corretamente o próximo instante elegível. O node temporário de migration foi removido após a validação; a versão final possui nove nodes, está inativa e não foi publicada.
+
+## Classificação estruturada por IA
+
+O classificador seleciona no máximo cinco vídeos ainda não processados por execução, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens.
+
+Cada classificação persiste categoria, tópico, tipo de conteúdo, formato, hook, origem, estilo de apresentação, confiança e três scores entre 0 e 1. Originalidade, risco autoral e risco de conteúdo reutilizado são estimativas heurísticas, não decisões jurídicas, afirmações de violação ou garantias de monetização. Modelo e versão do prompt são gravados em cada linha para auditoria.
+
+## Validação do AI Content Classifier
+
+A execução manual da revisão final selecionou cinco candidatos e terminou com sucesso:
+
+- 5 itens recebidos;
+- 4 novas classificações estruturadas;
+- 1 item ignorado porque uma execução concorrente o persistiu primeiro;
+- 0 falhas;
+- 5 chamadas estimadas ao modelo;
+- duração total de 134,315 segundos.
+
+A validação também confirmou a idempotência entre execuções concorrentes: a chave primária de `video_classifications` impediu duplicação e o conflito foi contabilizado como item ignorado. O bootstrap temporário da migration foi removido depois do teste; a versão final possui 13 nodes, está inativa e não foi publicada.
 
 ## Segurança
 

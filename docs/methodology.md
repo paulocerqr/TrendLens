@@ -90,3 +90,15 @@ Cada chamada `videos.list` contém no máximo 50 IDs e solicita somente estatís
 ## Primeira execução do Snapshot Tracker
 
 A validação integrada selecionou 149 vídeos vencidos, consultou três lotes e inseriu 149 snapshots sem falhas. Os contadores persistidos registraram três chamadas `videos.list`, três unidades estimadas de quota e duração de 1,685 segundo. Uma execução imediata subsequente selecionou zero candidatos e não chamou a API, confirmando a aplicação do intervalo mínimo com base no snapshot mais recente.
+
+## Classificação estruturada por IA
+
+O classificador usa apenas metadados públicos já persistidos: título, descrição truncada, canal, publicação, duração, idioma, região, confiança de Short e categorias de proveniência. Título e descrição são tratados como dados não confiáveis, e o prompt instrui o modelo a ignorar comandos contidos nesses campos.
+
+A resposta deve obedecer a um JSON Schema fechado. Campos livres usam `snake_case`; formato, hook, origem e categoria usam vocabulários controlados; scores e confiança ficam entre 0 e 1. Uma saída inválida passa por uma tentativa automática de correção com o mesmo provedor. Se ainda falhar, o erro é sanitizado, contabilizado e o próximo vídeo é processado.
+
+As categorias derivadas da coleta são apenas pistas e não determinam a resposta. O classificador não afirma violação de copyright nem elegibilidade de monetização: `copyright_risk` e `reused_content_risk` representam somente estimativas baseadas nos metadados disponíveis. `classification_model` e `prompt_version` tornam cada resultado auditável.
+
+## Primeira execução do AI Content Classifier
+
+A revisão final selecionou cinco candidatos, criou quatro classificações e ignorou uma linha já inserida por uma execução concorrente. O run terminou com zero falhas, cinco chamadas estimadas ao modelo e duração de 134,315 segundos. A execução concorrente também finalizou com sucesso, confirmando que o conflito por vídeo é tratado de forma idempotente.

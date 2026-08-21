@@ -74,11 +74,15 @@ Função SQL que seleciona vídeos do YouTube ainda dentro da janela ativa e cuj
 
 Relaciona cada vídeo elegível à query e à execução que o encontrou, preservando a posição na busca. Essa proveniência permite comparar as amostras `recent` e `high_performance` sem duplicar registros em `videos`.
 
+### `select_classification_candidates`
+
+Função SQL que retorna somente vídeos do YouTube sem linha em `video_classifications`. O limite e o tamanho máximo da descrição são argumentos explícitos; as categorias das queries que encontraram o vídeo são agregadas como pistas de baixa confiança.
+
 ## Dados derivados
 
 ### `video_classifications`
 
-Mantém a classificação estruturada atual de cada vídeo, incluindo modelo, versão do prompt, confiança, originalidade e riscos heurísticos.
+Mantém uma classificação estruturada por vídeo, incluindo categoria opcional, dimensões em `snake_case`, modelo, versão do prompt, confiança, originalidade e riscos heurísticos. Constraints protegem as faixas de 0 a 1 e impedem modelo ou versão de prompt vazios.
 
 ### `video_metrics`
 

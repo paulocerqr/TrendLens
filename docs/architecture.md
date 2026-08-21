@@ -61,7 +61,13 @@ YouTube Data API
 videos + video_snapshots + video_collection_matches
         |
         v
-classificação + métricas + tendências
+03 - AI Content Classifier
+        |
+        v
+video_classifications
+        |
+        v
+métricas + tendências
         |
         v
 recomendações + relatório
@@ -70,6 +76,8 @@ recomendações + relatório
 O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Os workflows seguintes permanecem no roadmap e serão implementados separadamente.
 
 O Snapshot Tracker consulta a função `select_snapshot_candidates`, agrupa os vídeos vencidos em lotes de até 50 IDs, atualiza somente as estatísticas públicas via `videos.list` e insere uma nova linha em `video_snapshots`. A política de idade e intervalo fica em `settings`; o Schedule Trigger funciona apenas como verificação periódica da fila.
+
+O AI Content Classifier consulta `select_classification_candidates`, processa um vídeo por vez e conecta o Basic LLM Chain a um modelo NVIDIA e a um parser estruturado. A saída validada é persistida em colunas tipadas de `video_classifications`; falhas do modelo, do parser ou da persistência seguem rotas próprias para `pipeline_errors` e o loop continua.
 
 ## Persistência e inicialização
 
