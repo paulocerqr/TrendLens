@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-O projeto está na Fase 1A: fundação reproduzível. Esta etapa entrega o modelo de dados, o PostgreSQL executável por Docker Compose e testes SQL. Os workflows do n8n serão implementados incrementalmente após a implantação do banco no mesmo servidor da instância n8n.
+A Fase 1 foi concluída. A fundação reproduzível entrega o modelo de dados, o PostgreSQL executável por Docker Compose, testes SQL e um workflow manual para validar a conexão real entre n8n e PostgreSQL.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -84,7 +84,20 @@ networks:
     external: true
 ```
 
-Essa integração e o workflow de smoke test pertencem à Fase 1B e não são executados automaticamente por este repositório.
+O workflow de smoke test permanece inativo e sua exportação não contém associação com uma credencial específica da instância. Depois da importação, atribua manualmente a credencial PostgreSQL dedicada.
+
+## Validação integrada
+
+O workflow `00 - TrendLens - PostgreSQL Smoke Test` foi executado com sucesso contra PostgreSQL 16.15. A execução confirmou:
+
+- banco `trendlens`;
+- schema esperado disponível;
+- 10 categorias e 10 configurações;
+- insert em `pipeline_runs`;
+- leitura do mesmo registro;
+- conexão exclusivamente pela rede Docker privada.
+
+O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workflows/00-postgresql-smoke-test.json).
 
 ## Segurança
 

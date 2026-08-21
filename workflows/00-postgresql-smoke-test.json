@@ -1,0 +1,125 @@
+{
+  "name": "00 - TrendLens - PostgreSQL Smoke Test",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a05ee2de-6947-4ae1-86df-80100009b5c5",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bb1693a6-2fe9-4abc-ae2f-5a150f3d335e",
+      "name": "Verificar banco e schema",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT current_database() AS database_name, current_user AS database_user, current_setting('server_version') AS server_version, (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('categories', 'settings', 'videos', 'video_snapshots', 'pipeline_runs', 'pipeline_errors')) = 6 AS schema_ready, (SELECT count(*) FROM categories) AS category_count, (SELECT count(*) FROM settings) AS settings_count;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "bc1ed5a7-f33a-43b4-b88b-2c0dbe57e8d4",
+      "name": "Registrar smoke test",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO pipeline_runs (workflow, started_at, finished_at, status, items_received, items_processed, items_skipped, items_failed, api_calls, quota_units_estimated, duration_seconds, metadata) SELECT '00 - TrendLens - PostgreSQL Smoke Test', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'success', 1, 1, 0, 0, 0, 0, 0, jsonb_build_object('test_type', 'n8n_postgresql_connection', 'schema_verified', $1::boolean) WHERE $1::boolean RETURNING id AS pipeline_run_id, workflow, status, started_at, finished_at;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$json.schema_ready] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "2135c295-d3a4-43df-9538-2efdc4a8bfc2",
+      "name": "Confirmar registro persistido",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1080,
+        300
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT id AS pipeline_run_id, workflow, status, items_received, items_processed, metadata ->> 'test_type' AS test_type, metadata ->> 'schema_verified' AS schema_verified, started_at, finished_at FROM pipeline_runs WHERE id = $1::bigint AND workflow = '00 - TrendLens - PostgreSQL Smoke Test';",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$json.pipeline_run_id] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Verificar banco e schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar banco e schema": {
+      "main": [
+        [
+          {
+            "node": "Registrar smoke test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar smoke test": {
+      "main": [
+        [
+          {
+            "node": "Confirmar registro persistido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

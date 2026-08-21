@@ -1,7 +1,17 @@
 # Workflows
 
-Os workflows serão adicionados incrementalmente após a fundação do banco estar implantada e acessível pelo n8n.
+Os workflows são adicionados incrementalmente depois de criados, validados e testados na instância n8n.
 
-A Fase 1B criará e validará o workflow inativo `00 - TrendLens - PostgreSQL Smoke Test`. Depois do teste integrado, o workflow será exportado para este diretório sem secrets.
+## 00 - TrendLens - PostgreSQL Smoke Test
 
-Nenhum workflow deve ser ativado automaticamente durante o desenvolvimento.
+O arquivo [00-postgresql-smoke-test.json](00-postgresql-smoke-test.json) valida:
+
+- identificação do banco e da versão do PostgreSQL;
+- presença das tabelas essenciais;
+- quantidade inicial de categorias e configurações;
+- insert auditável em `pipeline_runs`;
+- leitura do registro recém-inserido.
+
+A associação da credencial foi removida da exportação para evitar IDs específicos da instância. Depois de importar, atribua a credencial `TrendLens PostgreSQL` aos três nodes PostgreSQL.
+
+O workflow deve permanecer inativo e ser executado manualmente.
