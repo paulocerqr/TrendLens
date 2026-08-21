@@ -26,6 +26,8 @@ videos
     +-- video_classifications
     |
     +-- video_monetization_scores
+    |
+    +-- video_collection_matches
 
 category_statistics
     |
@@ -34,6 +36,8 @@ category_statistics
 pipeline_runs
     |
     +-- pipeline_errors
+    |
+    +-- video_collection_matches
 ```
 
 `recommendations` mantém a evidência agregada em JSONB, sem uma chave estrangeira direta para uma única linha estatística. Uma recomendação pode sintetizar múltiplas dimensões e janelas.
@@ -61,6 +65,10 @@ Armazena metadados públicos normalizados. A combinação `platform + external_i
 ### `video_snapshots`
 
 Armazena observações históricas imutáveis. Likes e comentários aceitam `NULL` quando a métrica não estiver disponível; isso não equivale a zero.
+
+### `video_collection_matches`
+
+Relaciona cada vídeo elegível à query e à execução que o encontrou, preservando a posição na busca. Essa proveniência permite comparar as amostras `recent` e `high_performance` sem duplicar registros em `videos`.
 
 ## Dados derivados
 

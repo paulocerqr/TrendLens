@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-A Fase 1 foi concluída. A fundação reproduzível entrega o modelo de dados, o PostgreSQL executável por Docker Compose, testes SQL e um workflow manual para validar a conexão real entre n8n e PostgreSQL.
+A Fase 1 foi concluída. A Fase 2 está em implementação: o collector do YouTube foi criado e validado no n8n, com configuração no PostgreSQL, coleta em lote, deduplicação, primeiro snapshot, proveniência amostral e observabilidade. A primeira execução real limitada será registrada após a migration de proveniência ser aplicada no servidor.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -128,6 +128,8 @@ O workflow `00 - TrendLens - PostgreSQL Smoke Test` foi executado com sucesso co
 - conexão exclusivamente pela rede Docker privada.
 
 O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workflows/00-postgresql-smoke-test.json).
+
+O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json).
 
 ## Segurança
 

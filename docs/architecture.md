@@ -49,7 +49,7 @@ O Compose deste repositório cria uma rede com o nome estável `trendlens_backen
 - Workflows não contêm senhas, tokens ou chaves.
 - Caddy e Cloudflare não precisam conhecer o PostgreSQL.
 
-## Fluxo futuro do MVP
+## Fluxo atual da coleta
 
 ```text
 YouTube Data API
@@ -58,7 +58,7 @@ YouTube Data API
 01 - Data Collector
         |
         v
-videos + video_snapshots
+videos + video_snapshots + video_collection_matches
         |
         v
 classificação + métricas + tendências
@@ -67,7 +67,7 @@ classificação + métricas + tendências
 recomendações + relatório
 ```
 
-Cada workflow será criado, validado, testado e exportado separadamente.
+O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Os workflows seguintes permanecem no roadmap e serão implementados separadamente.
 
 ## Persistência e inicialização
 

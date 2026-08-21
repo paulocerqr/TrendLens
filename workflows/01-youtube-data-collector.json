@@ -1,0 +1,625 @@
+{
+  "name": "01 - TrendLens - YouTube Data Collector",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a57356ba-75ca-468a-9867-06964ad810cb",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        120,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "d65ed725-5ac1-4fac-921e-86dddd347faa",
+      "name": "Iniciar execução e carregar queries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        380,
+        300
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS ( SELECT jsonb_object_agg(key, value) AS values FROM settings WHERE key = ANY (ARRAY['REGION','LANGUAGE','COLLECTION_WINDOW_HOURS','MAX_RESULTS_PER_QUERY','MAX_QUERIES_PER_RUN','SHORT_MAX_DURATION','YOUTUBE_SEARCH_DAILY_CALL_LIMIT','YOUTUBE_SEARCH_QUOTA_COST','YOUTUBE_VIDEOS_LIST_QUOTA_COST'])), started_run AS ( INSERT INTO pipeline_runs (workflow, status, metadata) SELECT '01 - TrendLens - YouTube Data Collector', 'running', jsonb_build_object('region', values -> 'REGION', 'language', values -> 'LANGUAGE', 'collection_window_hours', values -> 'COLLECTION_WINDOW_HOURS', 'max_results_per_query', values -> 'MAX_RESULTS_PER_QUERY', 'max_queries_per_run', values -> 'MAX_QUERIES_PER_RUN', 'search_quota_cost', values -> 'YOUTUBE_SEARCH_QUOTA_COST') FROM config RETURNING id, started_at), selected_queries AS ( SELECT q.id AS query_id, q.query_text, q.sample_group, q.language, q.region, c.slug AS category_slug, CASE WHEN q.sample_group = 'recent' THEN 'date' ELSE 'viewCount' END AS search_order, to_char((CURRENT_TIMESTAMP - make_interval(hours => (config.values ->> 'COLLECTION_WINDOW_HOURS')::integer)) AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS published_after, LEAST(COALESCE(q.max_results_override, (config.values ->> 'MAX_RESULTS_PER_QUERY')::integer), 50) AS max_results, (config.values ->> 'SHORT_MAX_DURATION')::integer AS short_max_duration, (config.values ->> 'YOUTUBE_VIDEOS_LIST_QUOTA_COST')::integer AS youtube_videos_list_quota_cost FROM collection_queries q JOIN categories c ON c.id = q.category_id CROSS JOIN config WHERE q.is_active ORDER BY q.last_collected_at ASC NULLS FIRST, q.priority, q.id LIMIT LEAST(GREATEST((config.values ->> 'MAX_QUERIES_PER_RUN')::integer, 1), GREATEST((config.values ->> 'YOUTUBE_SEARCH_DAILY_CALL_LIMIT')::integer, 1))) SELECT started_run.id AS pipeline_run_id, started_run.started_at AS run_started_at, selected_queries.* FROM selected_queries CROSS JOIN started_run;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "7fb682e2-9d9d-43b7-bc07-e46d37e89036",
+      "name": "Finalizar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        900,
+        -120
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH target AS ( SELECT * FROM pipeline_runs WHERE id = $1::bigint), counts AS ( SELECT target.id, (SELECT count(*) FROM video_collection_matches m WHERE m.pipeline_run_id = target.id) AS matches_recorded, (SELECT count(DISTINCT m.video_id) FROM video_collection_matches m JOIN videos v ON v.id = m.video_id WHERE m.pipeline_run_id = target.id AND v.created_at >= target.started_at) AS new_videos, (SELECT count(*) FROM video_snapshots s WHERE s.collected_at = target.started_at) AS snapshots_collected FROM target), updated AS ( UPDATE pipeline_runs SET finished_at = CURRENT_TIMESTAMP, status = CASE WHEN pipeline_runs.items_failed > 0 AND pipeline_runs.items_processed = 0 THEN 'failed' WHEN pipeline_runs.items_failed > 0 THEN 'partial' ELSE 'success' END, duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - pipeline_runs.started_at)), metadata = pipeline_runs.metadata || jsonb_build_object('matches_recorded', counts.matches_recorded, 'new_videos', counts.new_videos, 'duplicate_videos', GREATEST(pipeline_runs.items_processed - counts.new_videos, 0), 'snapshots_collected', counts.snapshots_collected) FROM counts WHERE pipeline_runs.id = counts.id RETURNING pipeline_runs.*) SELECT id AS pipeline_run_id, workflow, status, items_received, items_processed, items_skipped, items_failed, api_calls, quota_units_estimated, duration_seconds, metadata, started_at, finished_at FROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [$json.pipeline_run_id] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "96c5c7ce-5e00-46f1-9bb4-a759f0d9a082",
+      "name": "Buscar vídeos no YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.query_text }}"
+            },
+            {
+              "name": "publishedAfter",
+              "value": "={{ $json.published_after }}"
+            },
+            {
+              "name": "regionCode",
+              "value": "={{ $json.region }}"
+            },
+            {
+              "name": "relevanceLanguage",
+              "value": "={{ $json.language }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "={{ $json.max_results }}"
+            },
+            {
+              "name": "order",
+              "value": "={{ $json.search_order }}"
+            },
+            {
+              "name": "videoDuration",
+              "value": "short"
+            },
+            {
+              "name": "safeSearch",
+              "value": "moderate"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f804752a-f608-43b6-bd33-f0c017148956",
+      "name": "Busca retornou vídeos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1160,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Array.isArray($json.items) && $json.items.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1a19e448-afc3-4b7e-bac8-438d3fab4779",
+      "name": "Buscar detalhes em lote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1420,
+        180
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails,statistics,status"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.items.map(item => item.id.videoId).filter(Boolean).slice(0, 50).join(',') }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "49d22c3e-4a06-4fe8-af45-aea6cc784cbe",
+      "name": "Detalhes retornaram itens?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Array.isArray($json.items) && $json.items.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "877b6923-d2cb-4ce2-958a-4b53b26b232b",
+      "name": "Separar vídeos",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        80
+      ],
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "video"
+        }
+      }
+    },
+    {
+      "id": "2eae4251-a89d-41dd-a022-8864a7960312",
+      "name": "Persistir vídeo e snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2200,
+        80
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH raw AS ( SELECT $1::bigint AS pipeline_run_id, $2::timestamptz AS run_started_at, $3::bigint AS query_id, $4::integer AS search_rank, $5::text AS external_id, $6::text AS channel_id, NULLIF($7::text, '') AS channel_name, $8::text AS title, NULLIF($9::text, '') AS description, $10::timestamptz AS published_at, NULLIF($11::text, '') AS duration_iso, NULLIF($12::text, '') AS api_language, $13::text AS region, $14::text AS configured_language, $15::integer AS short_max_duration, NULLIF($16::text, '')::bigint AS views, NULLIF($17::text, '')::bigint AS likes, NULLIF($18::text, '')::bigint AS comments, COALESCE(NULLIF($19::text, ''), '[]') AS tags_json), normalized AS ( SELECT raw.*, CASE WHEN duration_iso ~ '^P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+S)?)?$' THEN COALESCE((substring(duration_iso FROM '([0-9]+)D'))::integer, 0) * 86400 + COALESCE((substring(duration_iso FROM '([0-9]+)H'))::integer, 0) * 3600 + COALESCE((substring(duration_iso FROM '([0-9]+)M'))::integer, 0) * 60 + COALESCE((substring(duration_iso FROM '([0-9]+)S'))::integer, 0) ELSE NULL END AS duration_seconds FROM raw), prepared AS ( SELECT normalized.*, (duration_seconds IS NOT NULL AND duration_seconds <= short_max_duration) AS is_candidate, CASE WHEN duration_seconds IS NOT NULL AND duration_seconds <= short_max_duration AND (lower(title || ' ' || COALESCE(description, '')) LIKE '%#shorts%' OR lower(tags_json) ~ '\"#?shorts\"') THEN 'high' WHEN duration_seconds IS NOT NULL AND duration_seconds <= 60 THEN 'medium' ELSE 'low' END AS short_confidence FROM normalized), existing_before AS ( SELECT v.id FROM videos v JOIN prepared p ON v.platform = 'youtube' AND v.external_id = p.external_id), video_upsert AS ( INSERT INTO videos (platform, external_id, channel_id, channel_name, title, description, url, published_at, duration_seconds, language, region, short_confidence) SELECT 'youtube', external_id, channel_id, channel_name, title, description, 'https://www.youtube.com/watch?v=' || external_id, published_at, duration_seconds, COALESCE(api_language, configured_language), region, short_confidence FROM prepared WHERE is_candidate ON CONFLICT (platform, external_id) DO UPDATE SET channel_id = EXCLUDED.channel_id, channel_name = EXCLUDED.channel_name, title = EXCLUDED.title, description = EXCLUDED.description, url = EXCLUDED.url, published_at = EXCLUDED.published_at, duration_seconds = EXCLUDED.duration_seconds, language = COALESCE(EXCLUDED.language, videos.language), region = EXCLUDED.region, short_confidence = EXCLUDED.short_confidence RETURNING id), snapshot_insert AS ( INSERT INTO video_snapshots (video_id, collected_at, views, likes, comments) SELECT video_upsert.id, prepared.run_started_at, prepared.views, prepared.likes, prepared.comments FROM video_upsert CROSS JOIN prepared WHERE prepared.views IS NOT NULL ON CONFLICT (video_id, collected_at) DO NOTHING RETURNING id, video_id), match_insert AS ( INSERT INTO video_collection_matches (pipeline_run_id, collection_query_id, video_id, search_rank, matched_at) SELECT prepared.pipeline_run_id, prepared.query_id, video_upsert.id, prepared.search_rank, prepared.run_started_at FROM video_upsert CROSS JOIN prepared ON CONFLICT (pipeline_run_id, collection_query_id, video_id) DO NOTHING RETURNING id), run_update AS ( UPDATE pipeline_runs SET items_received = items_received + 1, items_processed = items_processed + CASE WHEN prepared.is_candidate AND prepared.views IS NOT NULL THEN 1 ELSE 0 END, items_skipped = items_skipped + CASE WHEN prepared.is_candidate AND prepared.views IS NOT NULL THEN 0 ELSE 1 END FROM prepared WHERE pipeline_runs.id = prepared.pipeline_run_id RETURNING pipeline_runs.id) SELECT prepared.external_id, prepared.duration_seconds, prepared.short_confidence, prepared.is_candidate, (prepared.is_candidate AND prepared.views IS NOT NULL) AS processed, NOT EXISTS (SELECT 1 FROM existing_before) AND EXISTS (SELECT 1 FROM video_upsert) AS new_video, EXISTS (SELECT 1 FROM snapshot_insert) AS snapshot_inserted, EXISTS (SELECT 1 FROM match_insert) AS match_recorded, (SELECT id FROM run_update) AS pipeline_run_id FROM prepared;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id, $('Buscar vídeos no YouTube').item.json.items.findIndex(item => item.id.videoId === $json.video.id) + 1, $json.video.id, $json.video.snippet.channelId, $json.video.snippet.channelTitle ?? '', $json.video.snippet.title, $json.video.snippet.description ?? '', $json.video.snippet.publishedAt, $json.video.contentDetails.duration ?? '', $json.video.snippet.defaultAudioLanguage ?? $json.video.snippet.defaultLanguage ?? '', $('Processar queries').item.json.region, $('Processar queries').item.json.language, $('Processar queries').item.json.short_max_duration, $json.video.statistics.viewCount ?? '', $json.video.statistics.likeCount ?? '', $json.video.statistics.commentCount ?? '', JSON.stringify($json.video.snippet.tags ?? []) ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "703c109e-8ed5-4fa4-9d65-0b26371e0887",
+      "name": "Consolidar resultados da query",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        80
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "records",
+        "include": "allFields",
+        "options": {}
+      }
+    },
+    {
+      "id": "0727b2d8-f0bb-4570-b6eb-13d956acbdc0",
+      "name": "Registrar query concluída",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2720,
+        80
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH query_update AS ( UPDATE collection_queries SET last_collected_at = $2::timestamptz, last_status = 'success', consecutive_failures = 0, total_runs = total_runs + 1 WHERE id = $3::bigint RETURNING id), run_update AS ( UPDATE pipeline_runs SET api_calls = api_calls + 2, quota_units_estimated = quota_units_estimated + $4::integer, metadata = jsonb_set(jsonb_set(metadata, '{search_calls}', to_jsonb(COALESCE((metadata ->> 'search_calls')::integer, 0) + 1), true), '{videos_list_calls}', to_jsonb(COALESCE((metadata ->> 'videos_list_calls')::integer, 0) + 1), true) WHERE id = $1::bigint RETURNING id, status, items_received, items_processed, items_skipped, items_failed, api_calls, quota_units_estimated) SELECT run_update.*, (SELECT id FROM query_update) AS collection_query_id FROM run_update;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id, $('Processar queries').item.json.youtube_videos_list_quota_cost ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "1b54a43e-6996-4df6-8864-eb8230924fed",
+      "name": "Processar queries",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "a5751937-929f-4767-807d-7a5c9fd7da77",
+      "name": "Registrar detalhes ausentes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1940,
+        420
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH error_insert AS ( INSERT INTO pipeline_errors (pipeline_run_id, workflow, node, error_type, error_message, retry_count, metadata) VALUES ($1::bigint, '01 - TrendLens - YouTube Data Collector', $4::text, $5::text, left(regexp_replace($6::text, '(?i)(access_token|authorization|api[_-]?key|token)[^ ,;]*', '[REDACTED]', 'g'), 4000), 2, jsonb_build_object('collection_query_id', $3::bigint)) RETURNING id), query_update AS ( UPDATE collection_queries SET last_collected_at = $2::timestamptz, last_status = $7::text, consecutive_failures = consecutive_failures + 1, total_runs = total_runs + 1 WHERE id = $3::bigint RETURNING id), run_update AS ( UPDATE pipeline_runs SET items_failed = items_failed + 1, api_calls = api_calls + $8::integer, quota_units_estimated = quota_units_estimated + $9::integer WHERE id = $1::bigint RETURNING id, status, items_failed, api_calls) SELECT run_update.*, (SELECT id FROM error_insert) AS pipeline_error_id, (SELECT id FROM query_update) AS collection_query_id FROM run_update;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id, 'Buscar detalhes em lote', 'youtube_empty_details', 'YouTube returned no details for the search result IDs', 'partial', 2, $('Processar queries').item.json.youtube_videos_list_quota_cost ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "84aeef7b-d6a2-4c36-ae24-cff426b84dc2",
+      "name": "Registrar erro de detalhes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1680,
+        620
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH error_insert AS ( INSERT INTO pipeline_errors (pipeline_run_id, workflow, node, error_type, error_message, retry_count, metadata) VALUES ($1::bigint, '01 - TrendLens - YouTube Data Collector', $4::text, $5::text, left(regexp_replace($6::text, '(?i)(access_token|authorization|api[_-]?key|token)[^ ,;]*', '[REDACTED]', 'g'), 4000), 2, jsonb_build_object('collection_query_id', $3::bigint)) RETURNING id), query_update AS ( UPDATE collection_queries SET last_collected_at = $2::timestamptz, last_status = $7::text, consecutive_failures = consecutive_failures + 1, total_runs = total_runs + 1 WHERE id = $3::bigint RETURNING id), run_update AS ( UPDATE pipeline_runs SET items_failed = items_failed + 1, api_calls = api_calls + $8::integer, quota_units_estimated = quota_units_estimated + $9::integer WHERE id = $1::bigint RETURNING id, status, items_failed, api_calls) SELECT run_update.*, (SELECT id FROM error_insert) AS pipeline_error_id, (SELECT id FROM query_update) AS collection_query_id FROM run_update;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id, 'Buscar detalhes em lote', 'youtube_details_error', String($json.message ?? 'YouTube details request failed'), 'partial', 2, $('Processar queries').item.json.youtube_videos_list_quota_cost ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "addc569a-660c-4671-9e4d-1a08ecd5c8df",
+      "name": "Registrar query sem resultados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1420,
+        420
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH query_update AS ( UPDATE collection_queries SET last_collected_at = $2::timestamptz, last_status = 'success', consecutive_failures = 0, total_runs = total_runs + 1 WHERE id = $3::bigint RETURNING id), run_update AS ( UPDATE pipeline_runs SET api_calls = api_calls + 1, metadata = jsonb_set(metadata, '{search_calls}', to_jsonb(COALESCE((metadata ->> 'search_calls')::integer, 0) + 1), true) WHERE id = $1::bigint RETURNING id, status, api_calls) SELECT run_update.*, (SELECT id FROM query_update) AS collection_query_id FROM run_update;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "b10cc48b-1bcf-4325-a046-593ed13a6e75",
+      "name": "Registrar erro de busca",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1160,
+        620
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH error_insert AS ( INSERT INTO pipeline_errors (pipeline_run_id, workflow, node, error_type, error_message, retry_count, metadata) VALUES ($1::bigint, '01 - TrendLens - YouTube Data Collector', $4::text, $5::text, left(regexp_replace($6::text, '(?i)(access_token|authorization|api[_-]?key|token)[^ ,;]*', '[REDACTED]', 'g'), 4000), 2, jsonb_build_object('collection_query_id', $3::bigint)) RETURNING id), query_update AS ( UPDATE collection_queries SET last_collected_at = $2::timestamptz, last_status = $7::text, consecutive_failures = consecutive_failures + 1, total_runs = total_runs + 1 WHERE id = $3::bigint RETURNING id), run_update AS ( UPDATE pipeline_runs SET items_failed = items_failed + 1, api_calls = api_calls + $8::integer, quota_units_estimated = quota_units_estimated + $9::integer WHERE id = $1::bigint RETURNING id, status, items_failed, api_calls) SELECT run_update.*, (SELECT id FROM error_insert) AS pipeline_error_id, (SELECT id FROM query_update) AS collection_query_id FROM run_update;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $('Processar queries').item.json.pipeline_run_id, $('Processar queries').item.json.run_started_at, $('Processar queries').item.json.query_id, 'Buscar vídeos no YouTube', 'youtube_search_error', String($json.message ?? 'YouTube search failed'), 'failed', 1, 0 ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução e carregar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar execução e carregar queries": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar vídeos no YouTube": {
+      "main": [
+        [
+          {
+            "node": "Busca retornou vídeos?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de busca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca retornou vídeos?": {
+      "main": [
+        [
+          {
+            "node": "Buscar detalhes em lote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar query sem resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar detalhes em lote": {
+      "main": [
+        [
+          {
+            "node": "Detalhes retornaram itens?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de detalhes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detalhes retornaram itens?": {
+      "main": [
+        [
+          {
+            "node": "Separar vídeos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar detalhes ausentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar vídeos": {
+      "main": [
+        [
+          {
+            "node": "Persistir vídeo e snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persistir vídeo e snapshot": {
+      "main": [
+        [
+          {
+            "node": "Consolidar resultados da query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar resultados da query": {
+      "main": [
+        [
+          {
+            "node": "Registrar query concluída",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar query concluída": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar queries": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar vídeos no YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar detalhes ausentes": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar erro de detalhes": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar query sem resultados": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar erro de busca": {
+      "main": [
+        [
+          {
+            "node": "Processar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
