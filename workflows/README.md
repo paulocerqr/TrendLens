@@ -48,3 +48,22 @@ A exportação não contém associações de credenciais. Depois de importar, at
 O workflow deve permanecer inativo durante o desenvolvimento. Enquanto estiver inativo, o Schedule Trigger não executará.
 
 A validação integrada no workflow `LTjMbH3UGW994lCA` processou 149 vídeos em três lotes, inseriu 149 snapshots e terminou sem falhas. Uma segunda execução imediata não encontrou vídeos vencidos e não consumiu quota da API. Depois do teste, o bootstrap temporário da migration foi removido; a versão final possui nove nodes e permanece inativa e não publicada.
+
+## 03 - TrendLens - AI Content Classifier
+
+O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) implementa:
+
+- seleção configurável de vídeos do YouTube ainda não classificados;
+- envio somente dos metadados necessários, com descrição truncada;
+- classificação com NVIDIA Nemotron e prompt versionado;
+- saída JSON validada por schema e uma tentativa automática de correção;
+- persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
+- estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
+- retries limitados, erros sanitizados e contadores em `pipeline_runs`;
+- Manual Trigger e Schedule Trigger de execução a cada hora.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+
+O workflow deve permanecer inativo durante o desenvolvimento. Enquanto estiver inativo, o Schedule Trigger não executará.
+
+A execução integrada final no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão final possui 13 nodes, permanece inativa e não publicada.
