@@ -73,3 +73,20 @@ As primeiras execuções foram manuais e limitadas a quatro combinações de que
 A validação final recebeu 100 resultados, processou todos sem erro, registrou 99 vídeos novos, 1 duplicado, 100 correspondências de proveniência e 99 snapshots. O workflow permanece inativo até revisão explícita.
 
 Durante o teste, a passagem do timestamp do PostgreSQL pelo n8n revelou perda de precisão abaixo de milissegundos. A persistência passou a obter `pipeline_runs.started_at` diretamente do banco para manter uma chave temporal idêntica entre execução e snapshots. A finalização também usa uma referência explícita ao node inicial, pois a saída concluída do loop não preserva necessariamente o item de contexto.
+
+## Acompanhamento por snapshots
+
+O Snapshot Tracker usa o instante de publicação e o snapshot mais recente para decidir quando consultar novamente um vídeo:
+
+- até 24 horas de idade: intervalo mínimo inicial de 60 minutos;
+- acima de 24 e até 72 horas: intervalo mínimo inicial de 360 minutos;
+- acima de 72 horas e até 7 dias: intervalo mínimo inicial de 1.440 minutos;
+- acima de 7 dias: fora do acompanhamento ativo.
+
+Os limites, intervalos e o máximo de vídeos por execução ficam em `settings`. A função `select_snapshot_candidates` aplica a mesma regra de forma centralizada e ordena primeiro as observações há mais tempo sem atualização.
+
+Cada chamada `videos.list` contém no máximo 50 IDs e solicita somente estatísticas. Um retorno válido cria um novo snapshot no instante inicial do `pipeline_run`; o registro anterior nunca é atualizado. Likes e comentários ausentes permanecem `NULL`. Vídeos omitidos pela API ou sem `viewCount` são registrados como falhas do lote, sem impedir o processamento dos demais IDs.
+
+## Primeira execução do Snapshot Tracker
+
+A validação integrada selecionou 149 vídeos vencidos, consultou três lotes e inseriu 149 snapshots sem falhas. Os contadores persistidos registraram três chamadas `videos.list`, três unidades estimadas de quota e duração de 1,685 segundo. Uma execução imediata subsequente selecionou zero candidatos e não chamou a API, confirmando a aplicação do intervalo mínimo com base no snapshot mais recente.

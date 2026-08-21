@@ -66,6 +66,10 @@ Armazena metadados públicos normalizados. A combinação `platform + external_i
 
 Armazena observações históricas imutáveis. Likes e comentários aceitam `NULL` quando a métrica não estiver disponível; isso não equivale a zero.
 
+### `select_snapshot_candidates`
+
+Função SQL que seleciona vídeos do YouTube ainda dentro da janela ativa e cujo snapshot mais recente venceu o intervalo da respectiva faixa de idade. Ela retorna também a faixa e o intervalo aplicado, permitindo testar a política independentemente do n8n.
+
 ### `video_collection_matches`
 
 Relaciona cada vídeo elegível à query e à execução que o encontrou, preservando a posição na busca. Essa proveniência permite comparar as amostras `recent` e `high_performance` sem duplicar registros em `videos`.

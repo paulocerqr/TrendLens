@@ -69,6 +69,8 @@ recomendações + relatório
 
 O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Os workflows seguintes permanecem no roadmap e serão implementados separadamente.
 
+O Snapshot Tracker consulta a função `select_snapshot_candidates`, agrupa os vídeos vencidos em lotes de até 50 IDs, atualiza somente as estatísticas públicas via `videos.list` e insere uma nova linha em `video_snapshots`. A política de idade e intervalo fica em `settings`; o Schedule Trigger funciona apenas como verificação periódica da fila.
+
 ## Persistência e inicialização
 
 Os scripts em `database/` são montados em `/docker-entrypoint-initdb.d`. A imagem oficial do PostgreSQL executa esses arquivos somente ao inicializar um volume vazio.

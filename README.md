@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-A Fase 1 foi concluída. A Fase 2 está em implementação: o collector do YouTube foi criado e validado no n8n, com configuração no PostgreSQL, coleta em lote, deduplicação, primeiro snapshot, proveniência amostral e observabilidade. A execução real limitada confirmou o fluxo completo contra a YouTube Data API e o PostgreSQL do TrendLens.
+As Fases 1 e 2 foram concluídas. A Fase 3 possui migration, política de acompanhamento, testes SQL e workflow versionável implementados. O Snapshot Tracker seleciona vídeos vencidos por faixa de idade, consulta métricas em lotes de até 50 IDs e acrescenta observações históricas sem alterar snapshots anteriores.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -66,7 +66,7 @@ Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apen
 
 ## Atualização de um banco existente
 
-Depois de atualizar o repositório para a Fase 2, aplique a migration e os seeds idempotentes:
+Depois de atualizar o repositório para a Fase 3, aplique as migrations e os seeds idempotentes:
 
 ```bash
 docker compose exec -T postgres sh -c \
@@ -76,6 +76,10 @@ docker compose exec -T postgres sh -c \
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/migrations/003_video_collection_provenance.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/004_video_snapshot_tracker.sql
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
@@ -92,6 +96,14 @@ Valide a configuração:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/youtube-collector-foundation.sql
+```
+
+Valide a política do Snapshot Tracker:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/video-snapshot-tracker.sql
 ```
 
 ## Integração com um n8n existente
@@ -131,6 +143,8 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json).
 
+O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow validado no deployment original possui ID `LTjMbH3UGW994lCA` e permanece inativo.
+
 ## Validação do collector
 
 O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi testado manualmente. A execução de validação final processou quatro combinações de query e grupo amostral:
@@ -144,6 +158,30 @@ O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi tes
 - nenhum item ignorado e nenhum erro.
 
 Os contadores foram persistidos em `pipeline_runs`. O resultado reflete apenas essa execução de teste e não constitui uma análise de tendências.
+
+## Política de snapshots
+
+A seleção usa configurações do PostgreSQL:
+
+- vídeos com até 24 horas: intervalo mínimo de 60 minutos;
+- vídeos entre 1 e 3 dias: intervalo mínimo de 360 minutos;
+- vídeos entre 3 e 7 dias: intervalo mínimo de 1.440 minutos;
+- vídeos com mais de 7 dias: fora do acompanhamento ativo;
+- no máximo 200 vídeos por execução, respeitando o orçamento de quota configurado.
+
+Esses valores são defaults operacionais e podem ser alterados em `settings`. O Schedule Trigger verifica a fila a cada 15 minutos, mas a decisão de atualizar cada vídeo é tomada pela política armazenada no banco. Como o workflow é exportado inativo, o agendamento não executa até ativação explícita.
+
+## Validação do Snapshot Tracker
+
+A primeira execução manual integrada aplicou a migration, selecionou 149 vídeos vencidos e processou três lotes:
+
+- 149 itens recebidos e processados;
+- 149 novos snapshots;
+- zero itens ignorados e zero falhas;
+- 3 chamadas `videos.list` e 3 unidades estimadas de quota;
+- duração total de 1,685 segundo.
+
+Uma segunda execução imediata selecionou zero vídeos, não chamou a API e finalizou com sucesso. Isso confirmou que os snapshots recém-inseridos passaram a controlar corretamente o próximo instante elegível. O node temporário de migration foi removido após a validação; a versão final possui nove nodes, está inativa e não foi publicada.
 
 ## Segurança
 
