@@ -25,6 +25,10 @@ CREATE INDEX IF NOT EXISTS videos_channel_published_idx
 CREATE INDEX IF NOT EXISTS videos_candidate_filter_idx
     ON videos (platform, region, language, short_confidence, published_at DESC);
 
+CREATE INDEX IF NOT EXISTS videos_youtube_snapshot_tracking_idx
+    ON videos (published_at DESC, id)
+    WHERE platform = 'youtube';
+
 CREATE INDEX IF NOT EXISTS video_snapshots_video_collected_idx
     ON video_snapshots (video_id, collected_at DESC);
 
