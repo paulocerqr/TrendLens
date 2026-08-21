@@ -53,8 +53,9 @@ A duração ISO 8601 será convertida para segundos. Vídeos com duração acima
 ## Deduplicação
 
 `videos` possui unicidade em `platform + external_id`. O collector usará upsert para metadados e insert separado para snapshots. Um vídeo existente pode gerar um novo snapshot, mas não uma segunda linha em `videos`.
+Cada correspondência entre vídeo, query e execução será preservada em `video_collection_matches`, incluindo a posição retornada pela busca. A tabela mantém a proveniência necessária para comparar as amostras `recent` e `high_performance` sem duplicar o cadastro do vídeo.
 
-## Quota
+
 
 A documentação oficial atual usa um bucket separado para `search.list`, com custo de uma chamada e limite padrão configurável de 100 chamadas diárias. Operações de leitura como `videos.list` usam o bucket geral e normalmente custam uma unidade.
 

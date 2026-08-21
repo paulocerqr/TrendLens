@@ -88,4 +88,10 @@ CREATE INDEX IF NOT EXISTS pipeline_errors_run_idx
     ON pipeline_errors (pipeline_run_id, occurred_at DESC)
     WHERE pipeline_run_id IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS video_collection_matches_query_idx
+    ON video_collection_matches (collection_query_id, matched_at DESC);
+
+CREATE INDEX IF NOT EXISTS video_collection_matches_video_idx
+    ON video_collection_matches (video_id, matched_at DESC);
+
 COMMIT;

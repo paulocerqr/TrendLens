@@ -7,6 +7,7 @@ DECLARE
     high_performance_query_count INTEGER;
     represented_category_count INTEGER;
     required_setting_count INTEGER;
+    provenance_table_exists BOOLEAN;
 BEGIN
     SELECT count(*)
       INTO configured_query_count
@@ -60,6 +61,9 @@ BEGIN
         'YOUTUBE_VIDEOS_LIST_QUOTA_COST'
      );
 
+    SELECT to_regclass('public.video_collection_matches') IS NOT NULL
+      INTO provenance_table_exists;
+
     IF configured_query_count <> 22 THEN
         RAISE EXCEPTION 'Expected 22 seeded query-group combinations, found %', configured_query_count;
     END IF;
@@ -78,6 +82,10 @@ BEGIN
 
     IF required_setting_count <> 10 THEN
         RAISE EXCEPTION 'Expected 10 collector settings, found %', required_setting_count;
+    END IF;
+
+    IF NOT provenance_table_exists THEN
+        RAISE EXCEPTION 'Expected video_collection_matches table to exist';
     END IF;
 END;
 $$;

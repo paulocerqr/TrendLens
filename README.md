@@ -75,6 +75,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/003_video_collection_provenance.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
