@@ -70,13 +70,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS category_statistics_dimensions_period_idx
         platform,
         region,
         language,
-        topic,
-        content_type,
-        format,
-        hook_type,
-        source_type
+        dimension_type,
+        dimension_value,
+        calculation_version
     )
     NULLS NOT DISTINCT;
+
+CREATE INDEX IF NOT EXISTS category_statistics_dimension_rank_idx
+    ON category_statistics (
+        dimension_type,
+        period_end DESC,
+        median_virality DESC,
+        consistency_score DESC
+    );
 
 CREATE INDEX IF NOT EXISTS category_statistics_opportunity_idx
     ON category_statistics (period_end DESC, opportunity_score DESC)
