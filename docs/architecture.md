@@ -79,7 +79,10 @@ video_metrics
 video_monetization_scores
         |
         v
-tendências
+05 - Trend Engine
+        |
+        v
+category_statistics
         |
         v
 recomendações + relatório
@@ -93,7 +96,9 @@ O AI Content Classifier consulta `select_classification_candidates`, processa um
 
 O Metrics Engine chama `refresh_video_metrics` em uma operação set-based. A função identifica o snapshot atual de cada vídeo elegível, deriva o histórico necessário, calcula baselines e percentis sobre a coorte completa e faz upsert idempotente em `video_metrics`. O n8n apenas inicia, audita e finaliza a operação; todos os números analíticos vêm do PostgreSQL.
 
-O Monetization Engine chama `refresh_video_monetization_scores` depois do Metrics Engine. A função combina classificação estruturada, duração observada e percentil de engajamento, persiste cada fator positivo e cada risco e mantém versões de cálculo em `video_monetization_scores`. A numeração `05` permanece reservada ao Trend Engine previsto na arquitetura original.
+O Monetization Engine chama `refresh_video_monetization_scores` depois do Metrics Engine. A função combina classificação estruturada, duração observada e percentil de engajamento, persiste cada fator positivo e cada risco e mantém versões de cálculo em `video_monetization_scores`.
+
+O Trend Engine chama `refresh_category_statistics` e materializa estatísticas por categoria, tópico, tipo, formato, hook, origem e combinação categoria–formato–origem. A janela atual é comparada com a anterior equivalente; grupos sem amostra mínima permanecem explicitamente como `insufficient_data`.
 
 ## Persistência e inicialização
 

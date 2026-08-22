@@ -15,6 +15,8 @@
 - Execuções simultâneas do Metrics Engine são idempotentes por snapshot, mas podem repetir trabalho de cálculo. O intervalo padrão de uma hora é muito maior que a duração observada da execução.
 - Elegibilidade de política, adequação a anunciantes e viabilidade de produção usam proxies configuráveis baseados em metadados classificados e duração; não analisam áudio, frames, transcrição, linguagem sensível nem o estado real do canal.
 - Execuções simultâneas do Monetization Engine são idempotentes por vídeo e versão, mas podem recalcular as mesmas classificações. O score muda quando fatores, pesos, mapas ou a versão de cálculo mudam.
+- O Trend Engine usa a classificação e as versões atuais das métricas ao recalcular janelas históricas; correções posteriores podem revisar estatísticas do mesmo bucket.
+- Direção temporal exige amostra mínima nas duas janelas. Grupos novos, raros ou muito fragmentados permanecerão como `insufficient_data` até acumular observações suficientes.
 
 ## Dados e metodologia
 
@@ -30,6 +32,7 @@
 - Resultados só podem ser comparados dentro de contextos compatíveis de plataforma, região, período e amostra.
 - O Virality Score é relativo à amostra coletada e aos pesos v1; ele não reproduz nem prevê diretamente o algoritmo interno do YouTube.
 - O Monetization Score não estima receita, CPM, aprovação no Programa de Parcerias ou resultado de revisão de copyright. Ele compara somente os sinais heurísticos disponíveis no TrendLens.
+- Consistency Score mede repetição de desempenho dentro da amostra coletada; queries enviesadas ou poucos vídeos por dimensão podem limitar sua representatividade.
 
 ## Segurança
 

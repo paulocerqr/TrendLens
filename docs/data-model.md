@@ -102,7 +102,11 @@ Função SQL transacional que transforma classificações e métricas observadas
 
 ### `category_statistics`
 
-Armazena agregações por período e combinação de dimensões classificatórias. O índice único trata valores `NULL` como não distintos para impedir a duplicação da mesma agregação.
+Armazena agregações por período e dimensão classificatória. `dimension_type` e `dimension_value` identificam visões por categoria, tópico, tipo, formato, hook, origem ou combinação categoria–formato–origem. A linha preserva medianas, P75/P90, taxas, dispersão, consistência, amostra anterior, variação e direção. O índice único inclui período e versão e trata valores `NULL` como não distintos.
+
+### `refresh_category_statistics`
+
+Função SQL transacional que compara duas janelas equivalentes, agrega os vídeos classificados e faz upsert idempotente no bucket temporal. O retorno resume vídeos, dimensões, suficiência amostral e quantidades por direção de tendência.
 
 ### `recommendations`
 

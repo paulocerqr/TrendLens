@@ -124,3 +124,13 @@ A base positiva aplica pesos de 30% para originalidade, 25% para elegibilidade d
 ## Primeira execução do Monetization Engine
 
 A execução final processou 15 classificações em 0,076 segundo. Quatorze possuíam qualidade de engajamento observada, duas ficaram acima do limite de risco combinado e nenhuma violou as constraints. O score variou de 0,9065 a 5,5480, com média 3,4076. A amostra ainda é pequena e esses valores não devem ser generalizados como perfil do YouTube brasileiro.
+
+## Tendências e consistência
+
+O Trend Engine compara a janela móvel atual de sete dias com a janela anterior equivalente. Cada vídeo classificado contribui para visões independentes por categoria, tópico, tipo, formato, hook, origem e combinação categoria–formato–origem. O bucket horário torna tentativas repetidas idempotentes sem apagar o histórico de períodos.
+
+Cada grupo preserva tamanho da amostra, medianas, P75/P90 de views, taxas de outlier e alto desempenho, percentuais acima de P75/P90, dispersão e Consistency Score. A direção compara a mediana de Virality Score das duas janelas e exige a amostra mínima configurada em ambas. A fórmula completa está em [scoring.md](scoring.md).
+
+## Primeira execução do Trend Engine
+
+A execução final processou 20 vídeos e persistiu 104 agregações em 0,102 segundo. A maior dimensão continha quatro vídeos e nenhuma alcançou a amostra mínima padrão de 30 nas duas janelas; por isso todas as direções ficaram como `insufficient_data`. O Consistency Score variou de 0,6667 a 3,9470, sem violações de faixa.

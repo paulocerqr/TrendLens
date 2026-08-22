@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-As Fases 1 a 6 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo com saída estruturada e calcula métricas derivadas, Virality Score e Monetization Score de forma versionada e auditável.
+As Fases 1 a 7 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo e calcula métricas, Virality Score, Monetization Score e tendências agregadas de forma versionada e auditável.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -66,7 +66,7 @@ Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apen
 
 ## Atualização de um banco existente
 
-Depois de atualizar o repositório para a Fase 6, aplique as migrations e os seeds idempotentes na ordem abaixo:
+Depois de atualizar o repositório para a Fase 7, aplique as migrations e os seeds idempotentes na ordem abaixo:
 
 ```bash
 docker compose exec -T postgres sh -c \
@@ -92,6 +92,10 @@ docker compose exec -T postgres sh -c \
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/migrations/007_monetization_engine.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/008_trend_engine.sql
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
@@ -142,6 +146,14 @@ docker compose exec -T postgres sh -c \
   < tests/sql/monetization-engine.sql
 ```
 
+Valide o Trend Engine:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/trend-engine.sql
+```
+
 ## Integração com um n8n existente
 
 No servidor de deployment, o container n8n deverá participar da rede externa `trendlens_backend`. A credencial PostgreSQL deve ser criada na interface do n8n, sem versionar ou inserir a senha em workflows.
@@ -185,7 +197,9 @@ O AI Content Classifier exportado, sem associações de credenciais, está em [w
 
 O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `zf3Wwl1aUINxrGEy` e foi publicado e ativado após validação explícita do usuário.
 
-O Monetization Engine exportado está em [workflows/06-monetization-engine.json](workflows/06-monetization-engine.json). A numeração `05` permanece reservada ao Trend Engine. A exportação não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow validado no deployment original possui ID `oSqF120sKMd9AIh6`, permanece inativo e não foi publicado.
+O Trend Engine exportado está em [workflows/05-trend-engine.json](workflows/05-trend-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow validado no deployment original possui ID `WLiCVXsMdALZN6Xq`, permanece inativo e não foi publicado.
+
+O Monetization Engine exportado está em [workflows/06-monetization-engine.json](workflows/06-monetization-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `oSqF120sKMd9AIh6` e está publicado e ativo.
 
 ## Validação do collector
 
@@ -271,6 +285,19 @@ A execução final calculou os fatores explicáveis de todas as classificações
 - duração total de 0,076 segundo na execução final.
 
 Esses números descrevem somente a pequena amostra classificada existente. O score estima a atratividade de um formato para monetização sustentável; não prevê receita nem substitui decisões do YouTube.
+
+## Validação do Trend Engine
+
+A execução final agregou a janela atual de sete dias em dimensões comparáveis:
+
+- 20 vídeos classificados na janela;
+- 104 estatísticas persistidas em sete tipos de dimensão;
+- maior grupo com 4 vídeos;
+- Consistency Score entre 0,6667 e 3,9470, com média 3,2893;
+- zero valores fora das faixas e zero falhas;
+- duração total de 0,102 segundo.
+
+As 104 direções permaneceram `insufficient_data`, pois nenhum grupo atingiu a amostra mínima padrão de 30 vídeos nas janelas atual e anterior. O sistema não fabricou uma tendência com base em uma amostra pequena.
 
 ## Segurança
 

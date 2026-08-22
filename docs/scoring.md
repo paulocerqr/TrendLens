@@ -139,3 +139,61 @@ Faixas heurísticas iniciais:
 | 8,5 a 10 | perfil fortemente favorável na heurística |
 
 As faixas deverão ser recalibradas quando existirem mais classificações e avaliações manuais.
+
+## Trend Engine v1
+
+O Trend Engine usa uma janela atual de 168 horas e a janela anterior de mesmo tamanho. Os resultados são materializados em buckets horários para que uma nova tentativa dentro do mesmo bucket atualize as mesmas linhas.
+
+Dimensões produzidas:
+
+- categoria;
+- tópico;
+- tipo de conteúdo;
+- formato;
+- hook;
+- origem;
+- combinação categoria–formato–origem.
+
+Cada grupo preserva `sample_size`, mediana, P75 e P90 de views, medianas de engagement, velocity, Virality Score e Monetization Score, além de taxas calculadas somente sobre valores disponíveis. Métricas ausentes não entram no denominador.
+
+### Consistency Score
+
+Componentes iniciais:
+
+| Componente | Peso |
+|---|---:|
+| Adequação da amostra | 0,20 |
+| Taxa acima do percentil 75 de views | 0,30 |
+| Taxa acima do percentil 90 de views | 0,20 |
+| Mediana do percentil de engajamento | 0,20 |
+| Estabilidade da dispersão | 0,10 |
+
+```text
+sample_adequacy = min(sample_size / TREND_MIN_SAMPLE_SIZE, 1)
+
+dispersion = clamp(
+    1 - (p90_views - median_views) / max(median_views, 1),
+    0,
+    1
+)
+
+consistency = 10 * soma(componente_disponível * peso)
+                   / soma(pesos_disponíveis)
+```
+
+A taxa P75 mede a presença de vídeos com `views_percentile >= 0,75`; a taxa P90 usa `>= 0,90`. A dispersão reduz o score quando poucos vídeos extremos ficam muito distantes da mediana. Componentes ausentes têm o peso redistribuído e nunca são convertidos em zero.
+
+### Direção temporal
+
+```text
+trend_change = (median_virality_atual - median_virality_anterior) / 10
+```
+
+Com o threshold inicial de 0,10:
+
+- `rising`: mudança maior ou igual a 0,10;
+- `declining`: mudança menor ou igual a -0,10;
+- `stable`: mudança entre os limites;
+- `insufficient_data`: uma das janelas não possui a amostra mínima ou mediana válida.
+
+Assim, o threshold padrão exige uma diferença de pelo menos um ponto na mediana do Virality Score. A direção é relativa às janelas e à amostra do TrendLens, não uma previsão garantida de crescimento futuro.
