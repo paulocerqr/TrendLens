@@ -134,3 +134,13 @@ Cada grupo preserva tamanho da amostra, medianas, P75/P90 de views, taxas de out
 ## Primeira execução do Trend Engine
 
 A execução final processou 20 vídeos e persistiu 104 agregações em 0,102 segundo. A maior dimensão continha quatro vídeos e nenhuma alcançou a amostra mínima padrão de 30 nas duas janelas; por isso todas as direções ficaram como `insufficient_data`. O Consistency Score variou de 0,6667 a 3,9470, sem violações de faixa.
+
+## Opportunity Score e ranking
+
+O Opportunity Engine usa o bucket materializado mais recente da versão corrente do Trend Engine. Cada linha precisa das medianas de Virality e Monetization e do Consistency Score; se algum componente estiver ausente, o score e o rank permanecem `NULL` em vez de assumir zero.
+
+O cálculo aplica 50% a Virality, 35% a Monetization e 15% a Consistency. O rank denso e o percentil são calculados separadamente por período, versão, plataforma, região, idioma e tipo de dimensão, evitando comparar contextos incompatíveis. A definição completa está em [scoring.md](scoring.md).
+
+## Primeira execução do Opportunity Engine
+
+Após sincronizar Metrics, Monetization e Trend, a execução final processou 104 agregações em 0,070 segundo. Todas possuíam os três componentes, 14 linhas de categoria foram ranqueadas e nenhuma linha violou as constraints. Os scores ficaram entre 1,8664 e 6,5374, com média 4,3410. A amostra ainda é pequena e os resultados descrevem somente o conjunto coletado pelo TrendLens.

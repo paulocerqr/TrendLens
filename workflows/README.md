@@ -119,3 +119,19 @@ O arquivo [06-monetization-engine.json](06-monetization-engine.json) implementa:
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
 
 A execução integrada final no workflow `oSqF120sKMd9AIh6` processou 15 classificações, persistiu 15 scores, encontrou 14 qualidades de engajamento e 2 riscos combinados altos, sem falhas. O recálculo preservou 15 linhas; os scores ficaram entre 0,9065 e 5,5480 e a execução final terminou em 0,076 segundo. O workflow final possui seis nodes e está publicado e ativo; sua exportação permanece inativa.
+
+## 07 - TrendLens - Opportunity Engine
+
+O arquivo [07-opportunity-engine.json](07-opportunity-engine.json) implementa:
+
+- Opportunity Score com 50% de Virality, 35% de Monetization e 15% de Consistency;
+- exigência explícita dos três componentes, sem converter ausência em zero;
+- rank denso e percentil por contexto comparável e tipo de dimensão;
+- atualização em lote do bucket mais recente do Trend Engine;
+- versão de cálculo, instante do recálculo e quantidade de componentes;
+- logs de execução e erro sanitizado;
+- Manual Trigger e Schedule Trigger a cada seis horas, no minuto 40.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `IfeeHrIuecGxlORX` processou 104 agregações e ranqueou 14 linhas de categoria, sem falhas, em 0,070 segundo. Os 104 scores ficaram entre 1,8664 e 6,5374, com média 4,3410 e zero violações de faixa. Os nodes temporários de migration e auditoria foram removidos; o workflow final possui seis nodes, permanece inativo e não publicado.

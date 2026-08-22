@@ -85,6 +85,12 @@ video_monetization_scores
 category_statistics
         |
         v
+07 - Opportunity Engine
+        |
+        v
+Opportunity Score + ranking em category_statistics
+        |
+        v
 recomendações + relatório
 ```
 
@@ -99,6 +105,8 @@ O Metrics Engine chama `refresh_video_metrics` em uma operação set-based. A fu
 O Monetization Engine chama `refresh_video_monetization_scores` depois do Metrics Engine. A função combina classificação estruturada, duração observada e percentil de engajamento, persiste cada fator positivo e cada risco e mantém versões de cálculo em `video_monetization_scores`.
 
 O Trend Engine chama `refresh_category_statistics` e materializa estatísticas por categoria, tópico, tipo, formato, hook, origem e combinação categoria–formato–origem. A janela atual é comparada com a anterior equivalente; grupos sem amostra mínima permanecem explicitamente como `insufficient_data`.
+
+O Opportunity Engine chama `refresh_opportunity_rankings` sobre o bucket mais recente do Trend Engine. A função exige Virality, Monetization e Consistency, calcula o score ponderado e persiste rank e percentil dentro de cada contexto comparável e tipo de dimensão.
 
 ## Persistência e inicialização
 

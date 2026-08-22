@@ -17,6 +17,8 @@
 - Execuções simultâneas do Monetization Engine são idempotentes por vídeo e versão, mas podem recalcular as mesmas classificações. O score muda quando fatores, pesos, mapas ou a versão de cálculo mudam.
 - O Trend Engine usa a classificação e as versões atuais das métricas ao recalcular janelas históricas; correções posteriores podem revisar estatísticas do mesmo bucket.
 - Direção temporal exige amostra mínima nas duas janelas. Grupos novos, raros ou muito fragmentados permanecerão como `insufficient_data` até acumular observações suficientes.
+- O Opportunity Engine depende da sincronização dos engines anteriores. Se Virality, Monetization ou Consistency estiver ausente no bucket mais recente, a linha permanece sem score e sem rank.
+- O ranking é recalculado somente dentro do mesmo período, versão, plataforma, região, idioma e tipo de dimensão. Grupos com amostra pequena ainda podem receber score, mas o componente de consistência reduz sua força e o resultado não deve ser generalizado.
 
 ## Dados e metodologia
 
@@ -33,6 +35,7 @@
 - O Virality Score é relativo à amostra coletada e aos pesos v1; ele não reproduz nem prevê diretamente o algoritmo interno do YouTube.
 - O Monetization Score não estima receita, CPM, aprovação no Programa de Parcerias ou resultado de revisão de copyright. Ele compara somente os sinais heurísticos disponíveis no TrendLens.
 - Consistency Score mede repetição de desempenho dentro da amostra coletada; queries enviesadas ou poucos vídeos por dimensão podem limitar sua representatividade.
+- Opportunity Score é uma priorização relativa aos sinais e pesos v1, não uma previsão de viralização, receita ou sucesso futuro.
 
 ## Segurança
 

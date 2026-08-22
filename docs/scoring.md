@@ -197,3 +197,31 @@ Com o threshold inicial de 0,10:
 - `insufficient_data`: uma das janelas não possui a amostra mínima ou mediana válida.
 
 Assim, o threshold padrão exige uma diferença de pelo menos um ponto na mediana do Virality Score. A direção é relativa às janelas e à amostra do TrendLens, não uma previsão garantida de crescimento futuro.
+
+## Opportunity Score v1
+
+O Opportunity Engine combina os três scores agregados do bucket mais recente:
+
+| Componente | Peso |
+|---|---:|
+| Mediana de Virality Score | 0,50 |
+| Mediana de Monetization Score | 0,35 |
+| Consistency Score | 0,15 |
+
+Os componentes já estão na escala de 0 a 10. A normalização para 0 a 1 e o retorno à escala original equivalem a:
+
+```text
+opportunity = (
+    0,50 * median_virality
+  + 0,35 * median_monetization
+  + 0,15 * consistency
+) / soma_dos_pesos
+```
+
+O score exige os três componentes. Ausência não é convertida em zero nem redistribui peso; a linha permanece sem score e sem posição até que os engines anteriores produzam os dados necessários.
+
+### Ranking
+
+O `opportunity_rank` usa rank denso em ordem decrescente. O `opportunity_percentile` varia de 0 a 1, onde 1 representa o topo do grupo comparável. Ambos são particionados por período, plataforma, região, idioma, tipo de dimensão e versão do Trend Engine. Categorias, formatos e demais dimensões nunca disputam a mesma posição.
+
+O ranking prioriza oportunidades relativas à amostra do TrendLens. Ele não substitui análise editorial, validação de demanda, disponibilidade de produção ou avaliação oficial de monetização.

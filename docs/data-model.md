@@ -102,11 +102,15 @@ Função SQL transacional que transforma classificações e métricas observadas
 
 ### `category_statistics`
 
-Armazena agregações por período e dimensão classificatória. `dimension_type` e `dimension_value` identificam visões por categoria, tópico, tipo, formato, hook, origem ou combinação categoria–formato–origem. A linha preserva medianas, P75/P90, taxas, dispersão, consistência, amostra anterior, variação e direção. O índice único inclui período e versão e trata valores `NULL` como não distintos.
+Armazena agregações por período e dimensão classificatória. `dimension_type` e `dimension_value` identificam visões por categoria, tópico, tipo, formato, hook, origem ou combinação categoria–formato–origem. A linha preserva medianas, P75/P90, taxas, dispersão, consistência, amostra anterior, variação e direção. Também mantém Opportunity Score, rank, percentil, quantidade de componentes, versão e instante do cálculo. O índice único inclui período e versão e trata valores `NULL` como não distintos.
 
 ### `refresh_category_statistics`
 
 Função SQL transacional que compara duas janelas equivalentes, agrega os vídeos classificados e faz upsert idempotente no bucket temporal. O retorno resume vídeos, dimensões, suficiência amostral e quantidades por direção de tendência.
+
+### `refresh_opportunity_rankings`
+
+Função SQL transacional que seleciona o bucket de tendências mais recente, combina os três componentes obrigatórios e atualiza scores e rankings em lote. Ranks e percentis são particionados por contexto comparável e tipo de dimensão; o retorno resume linhas consideradas, completas, incompletas, categorias ranqueadas e maior score de categoria.
 
 ### `recommendations`
 
