@@ -85,7 +85,12 @@ CREATE INDEX IF NOT EXISTS category_statistics_dimension_rank_idx
     );
 
 CREATE INDEX IF NOT EXISTS category_statistics_opportunity_idx
-    ON category_statistics (period_end DESC, opportunity_score DESC)
+    ON category_statistics (
+        period_end DESC,
+        dimension_type,
+        opportunity_rank,
+        opportunity_score DESC
+    )
     WHERE opportunity_score IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS recommendations_generated_idx
