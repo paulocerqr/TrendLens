@@ -122,6 +122,24 @@ CREATE INDEX IF NOT EXISTS recommendations_context_rank_idx
         opportunity_score DESC
     );
 
+CREATE UNIQUE INDEX IF NOT EXISTS reports_source_version_idx
+    ON reports (
+        period_start,
+        period_end,
+        platform,
+        region,
+        language,
+        report_version,
+        source_calculation_version,
+        source_opportunity_version,
+        recommendation_prompt_version,
+        source_hash
+    )
+    NULLS NOT DISTINCT;
+
+CREATE INDEX IF NOT EXISTS reports_generated_context_idx
+    ON reports (generated_at DESC, platform, region, language);
+
 CREATE INDEX IF NOT EXISTS pipeline_runs_workflow_started_idx
     ON pipeline_runs (workflow, started_at DESC);
 
