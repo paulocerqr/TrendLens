@@ -1,0 +1,195 @@
+{
+  "name": "09 - TrendLens - Report",
+  "active": false,
+  "nodes": [
+    {
+      "id": "dd23c94f-a5ed-433a-94c6-b611db4a97a0",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "21b4e97c-5b4a-42bd-adb7-9833a9defc8b",
+      "name": "Iniciar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        560,
+        220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key,value) AS values\n  FROM settings\n  WHERE key = ANY (ARRAY[\n    'REGION','LANGUAGE','TREND_CALCULATION_VERSION','OPPORTUNITY_CALCULATION_VERSION',\n    'RECOMMENDATION_PROMPT_VERSION','REPORT_PERIOD','REPORT_VERSION',\n    'REPORT_TOP_OPPORTUNITIES_LIMIT','REPORT_VIRAL_RISK_LIMIT',\n    'REPORT_EMERGING_TRENDS_LIMIT','REPORT_VIRALITY_RISK_MIN',\n    'REPORT_MONETIZATION_RISK_MAX','REPORT_TIMEZONE'\n  ])\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '09 - TrendLens - Report','running',\n         jsonb_build_object(\n           'output_formats',jsonb_build_array('json','markdown'),\n           'configuration',coalesce(values,'{}'::jsonb),\n           'quantitative_source','postgresql'\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,metadata\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "077c8824-e47a-401f-a1d7-3646a97b5ce8",
+      "name": "Gerar e persistir relatório",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        840,
+        220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH generated AS (\n  SELECT * FROM build_trendlens_report($2::timestamptz)\n), inserted AS (\n  INSERT INTO reports (\n    period_start,period_end,platform,region,language,generated_at,\n    report_version,source_calculation_version,source_opportunity_version,\n    recommendation_prompt_version,videos_analyzed,categories_analyzed,\n    top_opportunities_count,viral_but_risky_count,emerging_trends_count,\n    report_json,report_markdown,source_hash\n  )\n  SELECT\n    period_start,period_end,platform,region,language,generated_at,\n    report_version,source_calculation_version,source_opportunity_version,\n    recommendation_prompt_version,videos_analyzed,categories_analyzed,\n    top_opportunities_count,viral_but_risky_count,emerging_trends_count,\n    report_json,report_markdown,source_hash\n  FROM generated\n  ON CONFLICT (\n    period_start,period_end,platform,region,language,report_version,\n    source_calculation_version,source_opportunity_version,\n    recommendation_prompt_version,source_hash\n  ) DO NOTHING\n  RETURNING reports.*,true AS report_created\n), resolved AS (\n  SELECT * FROM inserted\n  UNION ALL\n  SELECT existing.*,false AS report_created\n  FROM reports existing\n  CROSS JOIN generated\n  WHERE NOT EXISTS (SELECT 1 FROM inserted)\n    AND existing.period_start=generated.period_start\n    AND existing.period_end=generated.period_end\n    AND existing.platform=generated.platform\n    AND existing.region IS NOT DISTINCT FROM generated.region\n    AND existing.language IS NOT DISTINCT FROM generated.language\n    AND existing.report_version=generated.report_version\n    AND existing.source_calculation_version=generated.source_calculation_version\n    AND existing.source_opportunity_version=generated.source_opportunity_version\n    AND existing.recommendation_prompt_version=generated.recommendation_prompt_version\n    AND existing.source_hash=generated.source_hash\n  LIMIT 1\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=resolved.categories_analyzed,\n      items_processed=CASE WHEN resolved.report_created THEN 1 ELSE 0 END,\n      items_skipped=CASE WHEN resolved.report_created THEN 0 ELSE 1 END,\n      api_calls=0,\n      metadata=metadata || jsonb_build_object(\n        'report_id',resolved.id,\n        'report_created',resolved.report_created,\n        'source_hash',resolved.source_hash,\n        'period_start',resolved.period_start,\n        'period_end',resolved.period_end,\n        'context',jsonb_build_object(\n          'platform',resolved.platform,'region',resolved.region,'language',resolved.language\n        ),\n        'videos_analyzed',resolved.videos_analyzed,\n        'categories_analyzed',resolved.categories_analyzed,\n        'top_opportunities',resolved.top_opportunities_count,\n        'viral_but_risky',resolved.viral_but_risky_count,\n        'emerging_trends',resolved.emerging_trends_count,\n        'report_version',resolved.report_version,\n        'recommendation_prompt_version',resolved.recommendation_prompt_version\n      )\n  FROM resolved\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.*\n)\nSELECT\n  updated.id AS pipeline_run_id,\n  resolved.id AS report_id,\n  resolved.report_created,\n  resolved.period_start,resolved.period_end,\n  resolved.platform,resolved.region,resolved.language,\n  resolved.videos_analyzed,resolved.categories_analyzed,\n  resolved.top_opportunities_count,resolved.viral_but_risky_count,\n  resolved.emerging_trends_count,resolved.report_json,\n  resolved.report_markdown,resolved.source_hash\nFROM updated CROSS JOIN resolved;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "09409a8c-192d-416f-8356-b2713776ab19",
+      "name": "Finalizar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1120,
+        140
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),\n      status='success',\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at)))\n  WHERE id=$1::bigint\n  RETURNING *\n)\nSELECT\n  updated.id AS pipeline_run_id,updated.workflow,updated.status,\n  updated.items_received,updated.items_processed,updated.items_skipped,\n  updated.items_failed,updated.duration_seconds,updated.metadata,\n  updated.started_at,updated.finished_at,\n  report.id AS report_id,report.report_json,report.report_markdown\nFROM updated\nLEFT JOIN reports report ON report.id=(updated.metadata ->> 'report_id')::bigint;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "310eee5f-1845-46c1-a6ae-787cde0f8d4e",
+      "name": "Registrar erro de geração",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1120,
+        340
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (\n    pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata\n  )\n  SELECT args.run_id,'09 - TrendLens - Report','Gerar e persistir relatório','report_generation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,jsonb_build_object('output_formats',jsonb_build_array('json','markdown'))\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar execução\").item.json.pipeline_run_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha no Report Engine\") ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "4242233e-0065-49c4-b2b6-bcf93e99345a",
+      "name": "Gerar relatório semanal",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Iniciar execução": {
+      "main": [
+        [
+          {
+            "node": "Gerar e persistir relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar e persistir relatório": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de geração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar relatório semanal": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
+  }
+}
