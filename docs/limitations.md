@@ -22,6 +22,10 @@
 - O Recommendation AI usa apenas o bucket agregado mais recente. Mudanças na amostra, nas classificações ou nos cálculos alteram a evidência e podem gerar uma nova recomendação para a mesma categoria.
 - Execuções concorrentes do Recommendation AI podem consumir chamadas do modelo para a mesma evidência; a chave idempotente impede duplicação, mas uma execução contabiliza o conflito como item ignorado.
 - A saída textual é estruturada, mas continua sujeita a erros e simplificações do modelo. Formatos, hooks, riscos e observações precisam de revisão humana antes de orientar produção ou decisões comerciais.
+- O Report Engine apresenta um contexto de idioma por execução. Ele prefere o idioma configurado e depois uma variante regional compatível com maior cobertura; outros idiomas e regiões permanecem em relatórios separados ou fora do relatório atual.
+- O relatório usa somente o bucket agregado mais recente e recomendações do prompt atual. Categorias ainda não processadas pelo Recommendation AI aparecem com scores e evidências, mas sem sugestão textual.
+- Uma fonte com o mesmo hash reutiliza o relatório persistido e conserva seu instante de geração original. Mudanças nos dados ou nas versões criam uma nova linha, sem substituir o histórico.
+- O Markdown e o JSON ficam no PostgreSQL e na saída da execução do n8n. A Fase 10 não publica arquivo, envia mensagem nem expõe endpoint HTTP.
 
 ## Dados e metodologia
 
@@ -41,6 +45,7 @@
 - Opportunity Score é uma priorização relativa aos sinais e pesos v1, não uma previsão de viralização, receita ou sucesso futuro.
 - Recomendações derivam de correlações na amostra agregada, não estabelecem causalidade e não garantem viralização, monetização, conformidade legal ou resultado financeiro.
 - O modelo não recebe vídeos individuais e não pode avaliar execução criativa, imagens, áudio ou contexto completo. Em dimensões esparsas, os melhores formatos e hooks do contexto podem refletir padrões globais em vez de evidência forte da categoria.
+- Se nenhuma categoria atingir os critérios de Viral but Risky ou nenhuma direção for `rising`, o relatório mantém a seção vazia com uma explicação. Ausência de itens não significa ausência de risco ou de mudança fora da amostra observada.
 
 ## Segurança
 

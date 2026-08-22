@@ -160,3 +160,19 @@ A primeira execução final selecionou cinco categorias agregadas e criou cinco 
 A revisão qualitativa das respostas `v1` revelou interpretações indevidas do idioma da audiência e da unidade do Monetization Score. O prompt `v2` passou a distinguir o idioma analisado do idioma da resposta, a identificar scores como índices heurísticos de 0 a 10 e a proibir sua apresentação como moeda, receita, taxa, porcentagem ou contagem. A validação limitada a uma categoria criou uma recomendação `v2` em 46,320 segundos, sem falhas.
 
 A auditoria final encontrou 13 recomendações persistidas, sendo 12 preservadas como histórico `v1` e uma `v2`. Todas usavam evidência exclusivamente agregada; não havia campos de vídeo individual, scores fora da faixa, arrays inválidos nem evidências duplicadas. Treze contextos ainda aguardavam processamento pelo prompt atual, que voltará a consumir no máximo cinco categorias por execução.
+
+## Relatório determinístico
+
+O Report Engine não chama um modelo de linguagem. JSON e Markdown são renderizados pela função `build_trendlens_report` a partir do bucket mais recente do Trend Engine, dos rankings do Opportunity Engine e das recomendações estruturadas que usam a versão de prompt atualmente configurada. Isso mantém cada número ligado diretamente ao PostgreSQL e evita propagar recomendações históricas já substituídas.
+
+O relatório usa um único contexto comparável. Plataforma e região vêm das configurações; para idioma, a função prefere a correspondência exata e, quando ela não possui estatísticas, escolhe a variante regional com maior cobertura, como `pt-BR` para `pt`. O JSON registra tanto o idioma solicitado quanto o selecionado.
+
+Top Opportunities ordena categorias pelo Opportunity Score. Viral but Risky exige simultaneamente a mediana mínima de Virality Score e a mediana máxima de Monetization Score configuradas, expondo também a diferença entre os índices. Tendências emergentes incluem somente grupos `rising`, cuja direção já exige amostra mínima nas janelas atual e anterior. Se uma seção estiver vazia, o Markdown explica a ausência em vez de inventar resultados.
+
+O hash exclui apenas o instante de geração e inclui contexto, período, versões, cobertura, evidências e seções. Uma execução com a mesma fonte reutiliza o relatório persistido; quando os dados ou versões mudam, um novo registro é criado.
+
+## Primeira execução do Report Engine
+
+A execução final usou o contexto `youtube/BR/pt-BR`, analisou seis vídeos distribuídos em quatro categorias e gerou quatro Top Opportunities e dois casos Viral but Risky. Nenhuma tendência emergente possuía amostra suficiente, condição apresentada explicitamente nos dois formatos. Duas categorias tinham recomendações `v2`; as demais mantiveram somente os scores e as evidências do PostgreSQL.
+
+O contrato final foi versionado como `v2`. O relatório foi persistido em JSON e Markdown sem falhas em 0,224 segundo; uma execução imediata do fluxo definitivo encontrou o mesmo hash, reutilizou o mesmo registro em 0,145 segundo, com um item ignorado e zero falhas, confirmando a idempotência.

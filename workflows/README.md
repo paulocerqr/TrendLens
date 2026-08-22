@@ -154,3 +154,22 @@ A exportação não contém associações de credenciais. Depois de importar, at
 A primeira execução integrada no workflow `wtOD6YTBpRHsHawO` selecionou cinco categorias e criou cinco recomendações, sem falhas. Uma execução concorrente criou mais duas e ignorou três conflitos, confirmando a idempotência da persistência. O fluxo definitivo criou outras cinco recomendações; depois, uma validação limitada criou uma recomendação com o prompt semântico reforçado `v2`.
 
 A auditoria final encontrou 13 recomendações válidas, zero campos de vídeo individual, zero violações de score ou arrays e 13 candidatos ainda pendentes para o prompt atual. O limite de cinco categorias foi restaurado e o workflow temporário foi arquivado. O workflow final possui 13 nodes, permanece inativo e não publicado.
+
+## 09 - TrendLens - Report
+
+O arquivo [09-report.json](09-report.json) implementa:
+
+- relatório semanal determinístico em JSON e Markdown;
+- seleção de uma variante regional compatível com o idioma configurado;
+- tamanho da amostra, cobertura, período, contexto e versões das fontes;
+- Top Opportunities ordenado pelo score persistido;
+- seção Viral but Risky com limites configuráveis;
+- tendências emergentes restritas à direção `rising`;
+- recomendações somente da versão de prompt atual;
+- persistência idempotente por hash e versões;
+- logs de execução, retries e erro sanitizado;
+- Manual Trigger e Schedule Trigger às segundas-feiras, às 08:00.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `X3BctkFEVmBRK1e1` analisou seis vídeos e quatro categorias no contexto `youtube/BR/pt-BR`, produziu quatro Top Opportunities, dois casos Viral but Risky e nenhuma tendência emergente com amostra suficiente. O contrato final `v2` foi criado em JSON e Markdown sem falhas em 0,224 segundo; a repetição reutilizou o mesmo registro em 0,145 segundo, confirmando a idempotência. O bootstrap da migration foi removido; o workflow final possui seis nodes, permanece inativo e não publicado.

@@ -32,6 +32,8 @@ videos
 category_statistics
     |
     +-- recommendations
+    |
+    +-- reports
 
 pipeline_runs
     |
@@ -121,6 +123,14 @@ Os quatro arrays exigem de um a cinco itens. O índice único de evidência trat
 ### `select_recommendation_candidates`
 
 Função SQL estável que seleciona categorias com Opportunity Score no bucket corrente, aplica limite e score mínimo configuráveis e monta a evidência agregada. O JSON inclui o escopo, as estatísticas da categoria e listas limitadas de padrões de formato, origem e hook do mesmo contexto. Candidatos cuja combinação de evidência, modelo e versão já foi persistida são excluídos antes da chamada à IA.
+
+### `reports`
+
+Persiste o contrato JSON e a apresentação Markdown do mesmo relatório. A linha registra período, contexto, versões das fontes, cobertura, quantidade de itens em cada seção e hash determinístico. O índice único trata região e idioma nulos como iguais e impede duplicação quando o conteúdo agregado não mudou.
+
+### `build_trendlens_report`
+
+Função SQL estável que seleciona um contexto de idioma compatível, reúne categorias do bucket atual e renderiza Top Opportunities, Viral but Risky e tendências emergentes. Recomendações entram somente quando usam o prompt configurado; todas as métricas permanecem copiadas das agregações. A função também produz mensagens explícitas para seções sem dados e retorna os contadores usados por `pipeline_runs`.
 
 ## Observabilidade
 
