@@ -50,6 +50,9 @@ CREATE INDEX IF NOT EXISTS video_classifications_classified_at_idx
 CREATE INDEX IF NOT EXISTS video_metrics_video_calculated_idx
     ON video_metrics (video_id, calculated_at DESC);
 
+CREATE INDEX IF NOT EXISTS video_metrics_calculation_version_idx
+    ON video_metrics (calculation_version, calculated_at DESC);
+
 CREATE INDEX IF NOT EXISTS video_metrics_virality_idx
     ON video_metrics (virality_score DESC)
     WHERE virality_score IS NOT NULL;
