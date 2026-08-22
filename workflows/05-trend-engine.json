@@ -1,0 +1,191 @@
+{
+  "name": "05 - TrendLens - Trend Engine",
+  "active": false,
+  "nodes": [
+    {
+      "id": "8d9a040f-800e-493b-9b2e-e010595f8402",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "d708deaa-b11e-4619-9a7a-3b3aa17dc418",
+      "name": "Iniciar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        520,
+        220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key,value) AS values\n  FROM settings\n  WHERE key = ANY (ARRAY[\n    'TREND_PERIOD_HOURS','TREND_BUCKET_MINUTES','TREND_MIN_SAMPLE_SIZE',\n    'TREND_CALCULATION_VERSION','TREND_OUTLIER_PERCENTILE_THRESHOLD',\n    'TREND_HIGH_VIRALITY_THRESHOLD','TREND_DIRECTION_CHANGE_THRESHOLD',\n    'CONSISTENCY_SAMPLE_WEIGHT','CONSISTENCY_P75_WEIGHT','CONSISTENCY_P90_WEIGHT',\n    'CONSISTENCY_ENGAGEMENT_WEIGHT','CONSISTENCY_DISPERSION_WEIGHT'\n  ])\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '05 - TrendLens - Trend Engine','running',\n         jsonb_build_object(\n           'calculation_version',coalesce(values ->> 'TREND_CALCULATION_VERSION','v1'),\n           'configuration',coalesce(values,'{}'::jsonb)\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,\n       metadata ->> 'calculation_version' AS calculation_version\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "bd43d02a-7e0e-43ef-a202-c261b25e1981",
+      "name": "Calcular tendências",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        780,
+        220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH result AS (\n  SELECT * FROM refresh_category_statistics($2::timestamptz)\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=result.videos_in_current_period::integer,\n      items_processed=result.statistics_upserted::integer,\n      items_skipped=greatest(result.dimension_rows-result.statistics_upserted,0)::integer,\n      metadata=metadata || jsonb_build_object(\n        'dimension_rows',result.dimension_rows,\n        'sufficient_sample_statistics',result.sufficient_sample_statistics,\n        'rising_statistics',result.rising_statistics,\n        'stable_statistics',result.stable_statistics,\n        'declining_statistics',result.declining_statistics,\n        'insufficient_statistics',result.insufficient_statistics,\n        'calculation_version',result.calculation_version,\n        'period_start',result.period_start,\n        'period_end',result.period_end\n      )\n  FROM result\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.items_received,updated.items_processed,\n       updated.items_skipped,updated.items_failed,result.*\nFROM updated CROSS JOIN result;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "e28721ca-8c5c-46fc-bfea-007fe8d1e84d",
+      "name": "Finalizar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1040,
+        140
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),status='success',\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at)))\n  WHERE id=$1::bigint\n  RETURNING *\n)\nSELECT id AS pipeline_run_id,workflow,status,items_received,items_processed,\n       items_skipped,items_failed,duration_seconds,metadata,started_at,finished_at\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "9810c670-221c-4cb2-b8e3-8a53a68ad927",
+      "name": "Registrar erro de cálculo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1040,
+        340
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata)\n  SELECT args.run_id,'05 - TrendLens - Trend Engine','Calcular tendências','trend_calculation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,'{}'::jsonb\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar execução\").item.json.pipeline_run_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha no Trend Engine\") ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "2d6f08e3-b4c7-43f7-bded-bed8c74bc37a",
+      "name": "Calcular tendências a cada seis horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Iniciar execução": {
+      "main": [
+        [
+          {
+            "node": "Calcular tendências",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular tendências": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de cálculo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular tendências a cada seis horas": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 1800
+  }
+}

@@ -85,6 +85,23 @@ A exportação não contém associações de credenciais. Depois de importar, at
 
 A execução integrada final no workflow `zf3Wwl1aUINxrGEy` processou 268 vídeos e produziu 264 Virality Scores, 150 velocities e 11 baselines de canal, sem falhas. O recálculo imediato preservou 268 linhas, confirmou zero scores fora das faixas e terminou em 0,177 segundo. O workflow final possui seis nodes e foi publicado e ativado pelo usuário; sua exportação versionável permanece inativa.
 
+## 05 - TrendLens - Trend Engine
+
+O arquivo [05-trend-engine.json](05-trend-engine.json) implementa:
+
+- agregações por categoria, tópico, tipo, formato, hook e origem;
+- combinação categoria–formato–origem;
+- mediana, P75/P90, taxas de outlier e alto desempenho;
+- Consistency Score com pesos e dados ausentes explícitos;
+- comparação da janela atual com a anterior equivalente;
+- direções `rising`, `stable`, `declining` e `insufficient_data`;
+- recálculo idempotente por bucket, retries e erro sanitizado;
+- Manual Trigger e Schedule Trigger a cada seis horas, no minuto 30.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `WLiCVXsMdALZN6Xq` processou 20 vídeos e persistiu 104 agregações, sem falhas, em 0,102 segundo. A maior dimensão continha quatro vídeos; por isso todas as direções permaneceram `insufficient_data` diante do mínimo de 30. O workflow final possui seis nodes, permanece inativo e não publicado.
+
 ## 06 - TrendLens - Monetization Engine
 
 O arquivo [06-monetization-engine.json](06-monetization-engine.json) implementa:
@@ -99,6 +116,6 @@ O arquivo [06-monetization-engine.json](06-monetization-engine.json) implementa:
 - recálculo idempotente, retries e erro sanitizado;
 - Manual Trigger e Schedule Trigger a cada hora, no minuto 20.
 
-A numeração `05` permanece reservada ao Trend Engine. A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
 
-A execução integrada final no workflow `oSqF120sKMd9AIh6` processou 15 classificações, persistiu 15 scores, encontrou 14 qualidades de engajamento e 2 riscos combinados altos, sem falhas. O recálculo preservou 15 linhas; os scores ficaram entre 0,9065 e 5,5480 e a execução final terminou em 0,076 segundo. O workflow final possui seis nodes, permanece inativo e não publicado.
+A execução integrada final no workflow `oSqF120sKMd9AIh6` processou 15 classificações, persistiu 15 scores, encontrou 14 qualidades de engajamento e 2 riscos combinados altos, sem falhas. O recálculo preservou 15 linhas; os scores ficaram entre 0,9065 e 5,5480 e a execução final terminou em 0,076 segundo. O workflow final possui seis nodes e está publicado e ativo; sua exportação permanece inativa.
