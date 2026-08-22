@@ -114,7 +114,13 @@ Função SQL transacional que seleciona o bucket de tendências mais recente, co
 
 ### `recommendations`
 
-Armazena recomendações estruturadas, riscos, formatos, hooks e evidências quantitativas. Toda evidência numérica deverá ser produzida a partir do PostgreSQL.
+Armazena síntese, formatos, hooks, riscos e observações de monetização em campos tipados. Os scores de oportunidade, viralidade, monetização e consistência são copiados das agregações do PostgreSQL, nunca produzidos pelo modelo. A linha registra plataforma, região, idioma, período, modelo, versão do prompt, versões dos cálculos de origem, evidência JSONB agregada e seu hash.
+
+Os quatro arrays exigem de um a cinco itens. O índice único de evidência trata dimensões nulas como iguais e impede duplicação da mesma recomendação por categoria, período, contexto, modelo, prompt e hash. Não existe referência a um vídeo individual.
+
+### `select_recommendation_candidates`
+
+Função SQL estável que seleciona categorias com Opportunity Score no bucket corrente, aplica limite e score mínimo configuráveis e monta a evidência agregada. O JSON inclui o escopo, as estatísticas da categoria e listas limitadas de padrões de formato, origem e hook do mesmo contexto. Candidatos cuja combinação de evidência, modelo e versão já foi persistida são excluídos antes da chamada à IA.
 
 ## Observabilidade
 

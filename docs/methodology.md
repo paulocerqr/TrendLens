@@ -144,3 +144,19 @@ O cálculo aplica 50% a Virality, 35% a Monetization e 15% a Consistency. O rank
 ## Primeira execução do Opportunity Engine
 
 Após sincronizar Metrics, Monetization e Trend, a execução final processou 104 agregações em 0,070 segundo. Todas possuíam os três componentes, 14 linhas de categoria foram ranqueadas e nenhuma linha violou as constraints. Os scores ficaram entre 1,8664 e 6,5374, com média 4,3410. A amostra ainda é pequena e os resultados descrevem somente o conjunto coletado pelo TrendLens.
+
+## Recomendações estruturadas por IA
+
+O Recommendation AI seleciona apenas dimensões de categoria do bucket mais recente que possuem Opportunity Score. O contexto entregue ao modelo contém estatísticas agregadas da categoria, padrões agregados de categoria–formato–origem e rankings agregados de formatos e hooks; IDs, títulos, descrições e metadados de vídeos individuais não fazem parte da evidência.
+
+O modelo produz uma síntese acionável e de uma a cinco sugestões em cada grupo: formatos, hooks, riscos e observações de monetização. O prompt proíbe copiar vídeos específicos, inventar ou recalcular métricas, tratar correlação como causalidade e prometer viralização, receita ou conformidade. As sugestões descrevem padrões reutilizáveis, enquanto os scores persistidos continuam vindo exclusivamente do PostgreSQL.
+
+A resposta deve obedecer a um JSON Schema fechado e pode passar por uma tentativa automática de correção. A persistência registra modelo, versão do prompt, versões dos cálculos de origem, contexto comparável e hash da evidência. Uma chave única com `NULLS NOT DISTINCT` evita recomendações duplicadas para a mesma evidência, inclusive quando execuções concorrentes selecionam os mesmos candidatos.
+
+## Primeira execução do Recommendation AI
+
+A primeira execução final selecionou cinco categorias agregadas e criou cinco recomendações, sem falhas, em 369,624 segundos. Uma execução concorrente selecionou cinco candidatos, criou duas recomendações ainda pendentes e ignorou três conflitos já persistidos, confirmando a idempotência. O fluxo definitivo, já sem o bootstrap da migration, criou outras cinco recomendações em 331,140 segundos.
+
+A revisão qualitativa das respostas `v1` revelou interpretações indevidas do idioma da audiência e da unidade do Monetization Score. O prompt `v2` passou a distinguir o idioma analisado do idioma da resposta, a identificar scores como índices heurísticos de 0 a 10 e a proibir sua apresentação como moeda, receita, taxa, porcentagem ou contagem. A validação limitada a uma categoria criou uma recomendação `v2` em 46,320 segundos, sem falhas.
+
+A auditoria final encontrou 13 recomendações persistidas, sendo 12 preservadas como histórico `v1` e uma `v2`. Todas usavam evidência exclusivamente agregada; não havia campos de vídeo individual, scores fora da faixa, arrays inválidos nem evidências duplicadas. Treze contextos ainda aguardavam processamento pelo prompt atual, que voltará a consumir no máximo cinco categorias por execução.

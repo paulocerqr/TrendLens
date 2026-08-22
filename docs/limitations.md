@@ -19,6 +19,9 @@
 - Direção temporal exige amostra mínima nas duas janelas. Grupos novos, raros ou muito fragmentados permanecerão como `insufficient_data` até acumular observações suficientes.
 - O Opportunity Engine depende da sincronização dos engines anteriores. Se Virality, Monetization ou Consistency estiver ausente no bucket mais recente, a linha permanece sem score e sem rank.
 - O ranking é recalculado somente dentro do mesmo período, versão, plataforma, região, idioma e tipo de dimensão. Grupos com amostra pequena ainda podem receber score, mas o componente de consistência reduz sua força e o resultado não deve ser generalizado.
+- O Recommendation AI usa apenas o bucket agregado mais recente. Mudanças na amostra, nas classificações ou nos cálculos alteram a evidência e podem gerar uma nova recomendação para a mesma categoria.
+- Execuções concorrentes do Recommendation AI podem consumir chamadas do modelo para a mesma evidência; a chave idempotente impede duplicação, mas uma execução contabiliza o conflito como item ignorado.
+- A saída textual é estruturada, mas continua sujeita a erros e simplificações do modelo. Formatos, hooks, riscos e observações precisam de revisão humana antes de orientar produção ou decisões comerciais.
 
 ## Dados e metodologia
 
@@ -36,6 +39,8 @@
 - O Monetization Score não estima receita, CPM, aprovação no Programa de Parcerias ou resultado de revisão de copyright. Ele compara somente os sinais heurísticos disponíveis no TrendLens.
 - Consistency Score mede repetição de desempenho dentro da amostra coletada; queries enviesadas ou poucos vídeos por dimensão podem limitar sua representatividade.
 - Opportunity Score é uma priorização relativa aos sinais e pesos v1, não uma previsão de viralização, receita ou sucesso futuro.
+- Recomendações derivam de correlações na amostra agregada, não estabelecem causalidade e não garantem viralização, monetização, conformidade legal ou resultado financeiro.
+- O modelo não recebe vídeos individuais e não pode avaliar execução criativa, imagens, áudio ou contexto completo. Em dimensões esparsas, os melhores formatos e hooks do contexto podem refletir padrões globais em vez de evidência forte da categoria.
 
 ## Segurança
 

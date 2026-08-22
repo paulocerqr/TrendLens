@@ -91,7 +91,13 @@ category_statistics
 Opportunity Score + ranking em category_statistics
         |
         v
-recomendações + relatório
+08 - Recommendation AI
+        |
+        v
+recommendations
+        |
+        v
+relatório
 ```
 
 O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Cada etapa analítica permanece separada em um workflow especializado.
@@ -107,6 +113,8 @@ O Monetization Engine chama `refresh_video_monetization_scores` depois do Metric
 O Trend Engine chama `refresh_category_statistics` e materializa estatísticas por categoria, tópico, tipo, formato, hook, origem e combinação categoria–formato–origem. A janela atual é comparada com a anterior equivalente; grupos sem amostra mínima permanecem explicitamente como `insufficient_data`.
 
 O Opportunity Engine chama `refresh_opportunity_rankings` sobre o bucket mais recente do Trend Engine. A função exige Virality, Monetization e Consistency, calcula o score ponderado e persiste rank e percentil dentro de cada contexto comparável e tipo de dimensão.
+
+O Recommendation AI chama `select_recommendation_candidates` e envia ao modelo somente evidências agregadas do bucket corrente: estatísticas da categoria, padrões categoria–formato–origem e os melhores formatos e hooks do contexto. A saída passa por um parser estruturado antes de ser persistida em `recommendations`; o hash da evidência e as versões de prompt, modelo e cálculos tornam o processamento idempotente e auditável.
 
 ## Persistência e inicialização
 

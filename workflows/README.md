@@ -135,3 +135,22 @@ O arquivo [07-opportunity-engine.json](07-opportunity-engine.json) implementa:
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
 
 A execução integrada final no workflow `IfeeHrIuecGxlORX` processou 104 agregações e ranqueou 14 linhas de categoria, sem falhas, em 0,070 segundo. Os 104 scores ficaram entre 1,8664 e 6,5374, com média 4,3410 e zero violações de faixa. Os nodes temporários de migration e auditoria foram removidos; o workflow final possui seis nodes, permanece inativo e não publicado.
+
+## 08 - TrendLens - Recommendation AI
+
+O arquivo [08-recommendation-engine.json](08-recommendation-engine.json) implementa:
+
+- seleção idempotente de categorias ranqueadas no bucket mais recente;
+- contexto restrito a estatísticas e padrões agregados, sem vídeos individuais;
+- geração com NVIDIA Nemotron e prompt versionado;
+- síntese, formatos, hooks, riscos e observações de monetização acionáveis;
+- validação por JSON Schema e uma tentativa automática de correção;
+- persistência dos scores originais, versões e hash da evidência;
+- tratamento de conflitos concorrentes, retries e erros sanitizados;
+- Manual Trigger e Schedule Trigger a cada seis horas, no minuto 50.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+
+A primeira execução integrada no workflow `wtOD6YTBpRHsHawO` selecionou cinco categorias e criou cinco recomendações, sem falhas. Uma execução concorrente criou mais duas e ignorou três conflitos, confirmando a idempotência da persistência. O fluxo definitivo criou outras cinco recomendações; depois, uma validação limitada criou uma recomendação com o prompt semântico reforçado `v2`.
+
+A auditoria final encontrou 13 recomendações válidas, zero campos de vídeo individual, zero violações de score ou arrays e 13 candidatos ainda pendentes para o prompt atual. O limite de cinco categorias foi restaurado e o workflow temporário foi arquivado. O workflow final possui 13 nodes, permanece inativo e não publicado.
