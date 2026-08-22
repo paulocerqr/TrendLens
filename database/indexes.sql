@@ -99,6 +99,29 @@ CREATE INDEX IF NOT EXISTS recommendations_generated_idx
 CREATE INDEX IF NOT EXISTS recommendations_category_score_idx
     ON recommendations (category, opportunity_score DESC, generated_at DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS recommendations_evidence_version_idx
+    ON recommendations (
+        category,
+        period_start,
+        period_end,
+        platform,
+        region,
+        language,
+        prompt_version,
+        model,
+        evidence_hash
+    )
+    NULLS NOT DISTINCT;
+
+CREATE INDEX IF NOT EXISTS recommendations_context_rank_idx
+    ON recommendations (
+        period_end DESC,
+        platform,
+        region,
+        language,
+        opportunity_score DESC
+    );
+
 CREATE INDEX IF NOT EXISTS pipeline_runs_workflow_started_idx
     ON pipeline_runs (workflow, started_at DESC);
 
