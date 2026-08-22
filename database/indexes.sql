@@ -60,6 +60,9 @@ CREATE INDEX IF NOT EXISTS video_metrics_virality_idx
 CREATE INDEX IF NOT EXISTS video_monetization_scores_rank_idx
     ON video_monetization_scores (monetization_score DESC, calculated_at DESC);
 
+CREATE INDEX IF NOT EXISTS video_monetization_scores_version_idx
+    ON video_monetization_scores (calculation_version, calculated_at DESC);
+
 CREATE UNIQUE INDEX IF NOT EXISTS category_statistics_dimensions_period_idx
     ON category_statistics (
         period_start,
