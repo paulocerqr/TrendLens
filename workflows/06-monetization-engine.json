@@ -1,0 +1,173 @@
+{
+  "name": "06 - TrendLens - Monetization Engine",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a21b800f-efb1-4e83-83ea-51b36d58deae",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 120],
+      "parameters": {}
+    },
+    {
+      "id": "d9ceefda-8f09-4817-a148-1fc7cf5fd530",
+      "name": "Iniciar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [520, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key, value) AS values\n  FROM settings\n  WHERE key = ANY (ARRAY[\n    'MONETIZATION_MAX_VIDEOS_PER_RUN','MONETIZATION_CALCULATION_VERSION',\n    'MONETIZATION_ORIGINALITY_WEIGHT','MONETIZATION_POLICY_WEIGHT',\n    'MONETIZATION_ADVERTISER_WEIGHT','MONETIZATION_PRODUCTION_WEIGHT',\n    'MONETIZATION_ENGAGEMENT_WEIGHT','MONETIZATION_COPYRIGHT_RISK_WEIGHT',\n    'MONETIZATION_REUSED_RISK_WEIGHT','MONETIZATION_PRODUCTION_DURATION_WEIGHT',\n    'MONETIZATION_HIGH_RISK_THRESHOLD','MONETIZATION_POLICY_SOURCE_SCORES',\n    'MONETIZATION_ADVERTISER_FORMAT_SCORES','MONETIZATION_PRODUCTION_FORMAT_SCORES'\n  ])\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '06 - TrendLens - Monetization Engine','running',\n         jsonb_build_object(\n           'max_videos_per_run',coalesce((values ->> 'MONETIZATION_MAX_VIDEOS_PER_RUN')::integer,1000),\n           'calculation_version',coalesce(values ->> 'MONETIZATION_CALCULATION_VERSION','v1'),\n           'configuration',coalesce(values,'{}'::jsonb)\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,\n       (metadata ->> 'max_videos_per_run')::integer AS max_videos_per_run,\n       metadata ->> 'calculation_version' AS calculation_version\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "cf1ca7cf-c3ef-4c96-9251-41611201adf1",
+      "name": "Calcular Monetization Score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [780, 220],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH result AS (\n  SELECT * FROM refresh_video_monetization_scores($2::integer,$3::timestamptz)\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=result.candidates_selected::integer,\n      items_processed=result.scores_upserted::integer,\n      items_skipped=greatest(result.candidates_selected-result.scores_upserted,0)::integer,\n      metadata=metadata || jsonb_build_object(\n        'eligible_classifications',result.eligible_classifications,\n        'engagement_quality_available',result.engagement_quality_available,\n        'high_risk_scores',result.high_risk_scores,\n        'calculation_version',result.calculation_version,\n        'calculated_at',result.calculated_at\n      )\n  FROM result\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.items_received,updated.items_processed,\n       updated.items_skipped,updated.items_failed,result.*\nFROM updated CROSS JOIN result;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.max_videos_per_run, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "4203cb4d-c717-4b96-ac0a-df777e5f0cb0",
+      "name": "Finalizar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [1040, 140],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),\n      status='success',\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at)))\n  WHERE id=$1::bigint\n  RETURNING *\n)\nSELECT id AS pipeline_run_id,workflow,status,items_received,items_processed,\n       items_skipped,items_failed,duration_seconds,metadata,started_at,finished_at\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "3d3128e4-c115-49ac-a0b3-f85cc3864945",
+      "name": "Registrar erro de cálculo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [1040, 340],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (\n    pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata\n  )\n  SELECT args.run_id,'06 - TrendLens - Monetization Engine',\n         'Calcular Monetization Score','monetization_calculation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,'{}'::jsonb\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar execução\").item.json.pipeline_run_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha no Monetization Engine\") ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "999756c8-e8c6-4084-9fdd-db5ad31b7e9e",
+      "name": "Calcular monetização a cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [0, 320],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 20
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Iniciar execução": {
+      "main": [
+        [
+          {
+            "node": "Calcular Monetization Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Monetization Score": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de cálculo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular monetização a cada hora": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 1800
+  }
+}

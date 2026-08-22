@@ -83,4 +83,22 @@ O arquivo [04-metrics-engine.json](04-metrics-engine.json) implementa:
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
 
-A execução integrada final no workflow `zf3Wwl1aUINxrGEy` processou 268 vídeos e produziu 264 Virality Scores, 150 velocities e 11 baselines de canal, sem falhas. O recálculo imediato preservou 268 linhas, confirmou zero scores fora das faixas e terminou em 0,177 segundo. O workflow final possui seis nodes, permanece inativo e não publicado.
+A execução integrada final no workflow `zf3Wwl1aUINxrGEy` processou 268 vídeos e produziu 264 Virality Scores, 150 velocities e 11 baselines de canal, sem falhas. O recálculo imediato preservou 268 linhas, confirmou zero scores fora das faixas e terminou em 0,177 segundo. O workflow final possui seis nodes e foi publicado e ativado pelo usuário; sua exportação versionável permanece inativa.
+
+## 06 - TrendLens - Monetization Engine
+
+O arquivo [06-monetization-engine.json](06-monetization-engine.json) implementa:
+
+- fatores positivos explicáveis a partir da classificação, duração e engajamento;
+- elegibilidade de política por `source_type` configurável;
+- adequação a anunciantes e viabilidade de produção por `format` configurável;
+- ajuste dos proxies pela confiança da classificação;
+- risco combinado de copyright e conteúdo reutilizado;
+- Monetization Score versionado de 0 a 10;
+- redistribuição explícita do peso de engajamento ausente;
+- recálculo idempotente, retries e erro sanitizado;
+- Manual Trigger e Schedule Trigger a cada hora, no minuto 20.
+
+A numeração `05` permanece reservada ao Trend Engine. A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `oSqF120sKMd9AIh6` processou 15 classificações, persistiu 15 scores, encontrou 14 qualidades de engajamento e 2 riscos combinados altos, sem falhas. O recálculo preservou 15 linhas; os scores ficaram entre 0,9065 e 5,5480 e a execução final terminou em 0,076 segundo. O workflow final possui seis nodes, permanece inativo e não publicado.
