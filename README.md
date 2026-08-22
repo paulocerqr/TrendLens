@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-As Fases 1 a 5 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo com saída estruturada e calcula métricas derivadas e o Virality Score de forma versionada e auditável.
+As Fases 1 a 6 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo com saída estruturada e calcula métricas derivadas, Virality Score e Monetization Score de forma versionada e auditável.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -66,7 +66,7 @@ Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apen
 
 ## Atualização de um banco existente
 
-Depois de atualizar o repositório para a Fase 5, aplique as migrations e os seeds idempotentes na ordem abaixo:
+Depois de atualizar o repositório para a Fase 6, aplique as migrations e os seeds idempotentes na ordem abaixo:
 
 ```bash
 docker compose exec -T postgres sh -c \
@@ -88,6 +88,10 @@ docker compose exec -T postgres sh -c \
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/migrations/006_metrics_engine.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/007_monetization_engine.sql
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
@@ -128,6 +132,14 @@ Valide o Metrics Engine e o Virality Score:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/metrics-engine.sql
+```
+
+Valide o Monetization Engine:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/monetization-engine.sql
 ```
 
 ## Integração com um n8n existente
@@ -171,7 +183,9 @@ O Snapshot Tracker exportado, também sem associações de credenciais, está em
 
 O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow no deployment original possui ID `86iKeeCFXiiX3fki`, permanece inativo e não foi publicado.
 
-O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow validado no deployment original possui ID `zf3Wwl1aUINxrGEy`, permanece inativo e não foi publicado.
+O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `zf3Wwl1aUINxrGEy` e foi publicado e ativado após validação explícita do usuário.
+
+O Monetization Engine exportado está em [workflows/06-monetization-engine.json](workflows/06-monetization-engine.json). A numeração `05` permanece reservada ao Trend Engine. A exportação não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow validado no deployment original possui ID `oSqF120sKMd9AIh6`, permanece inativo e não foi publicado.
 
 ## Validação do collector
 
@@ -243,6 +257,20 @@ A revisão final calculou a coorte real de sete dias em uma única operação tr
 - duração total de 0,177 segundo na execução final.
 
 Nenhuma View Acceleration foi produzida porque os vídeos reais ainda não possuíam três snapshots. O campo permanece `NULL` até existir histórico suficiente. A fórmula completa e a estratégia de dados ausentes estão em [docs/scoring.md](docs/scoring.md).
+
+## Validação do Monetization Engine
+
+A execução final calculou os fatores explicáveis de todas as classificações disponíveis:
+
+- 15 classificações elegíveis e processadas;
+- 14 scores com qualidade de engajamento observada;
+- 1 score com redistribuição explícita do peso de engajamento ausente;
+- 2 classificações acima do limite heurístico de risco combinado;
+- zero falhas e zero scores fora das faixas;
+- Monetization Score entre 0,9065 e 5,5480, com média 3,4076;
+- duração total de 0,076 segundo na execução final.
+
+Esses números descrevem somente a pequena amostra classificada existente. O score estima a atratividade de um formato para monetização sustentável; não prevê receita nem substitui decisões do YouTube.
 
 ## Segurança
 

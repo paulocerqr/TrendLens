@@ -73,19 +73,27 @@ video_classifications
 video_metrics
         |
         v
+06 - Monetization Engine
+        |
+        v
+video_monetization_scores
+        |
+        v
 tendências
         |
         v
 recomendações + relatório
 ```
 
-O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Os workflows seguintes permanecem no roadmap e serão implementados separadamente.
+O collector consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Cada etapa analítica permanece separada em um workflow especializado.
 
 O Snapshot Tracker consulta a função `select_snapshot_candidates`, agrupa os vídeos vencidos em lotes de até 50 IDs, atualiza somente as estatísticas públicas via `videos.list` e insere uma nova linha em `video_snapshots`. A política de idade e intervalo fica em `settings`; o Schedule Trigger funciona apenas como verificação periódica da fila.
 
 O AI Content Classifier consulta `select_classification_candidates`, processa um vídeo por vez e conecta o Basic LLM Chain a um modelo NVIDIA e a um parser estruturado. A saída validada é persistida em colunas tipadas de `video_classifications`; falhas do modelo, do parser ou da persistência seguem rotas próprias para `pipeline_errors` e o loop continua.
 
 O Metrics Engine chama `refresh_video_metrics` em uma operação set-based. A função identifica o snapshot atual de cada vídeo elegível, deriva o histórico necessário, calcula baselines e percentis sobre a coorte completa e faz upsert idempotente em `video_metrics`. O n8n apenas inicia, audita e finaliza a operação; todos os números analíticos vêm do PostgreSQL.
+
+O Monetization Engine chama `refresh_video_monetization_scores` depois do Metrics Engine. A função combina classificação estruturada, duração observada e percentil de engajamento, persiste cada fator positivo e cada risco e mantém versões de cálculo em `video_monetization_scores`. A numeração `05` permanece reservada ao Trend Engine previsto na arquitetura original.
 
 ## Persistência e inicialização
 

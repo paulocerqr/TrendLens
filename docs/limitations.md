@@ -13,6 +13,8 @@
 - O Metrics Engine recalcula percentis sobre a coorte atual; scores históricos podem mudar quando a amostra cresce ou a versão das fórmulas é alterada.
 - Baseline de canal exige outros vídeos recentes do mesmo canal. Canais com pouca presença na amostra mantêm `channel_median_views` e `outlier_score` como `NULL`.
 - Execuções simultâneas do Metrics Engine são idempotentes por snapshot, mas podem repetir trabalho de cálculo. O intervalo padrão de uma hora é muito maior que a duração observada da execução.
+- Elegibilidade de política, adequação a anunciantes e viabilidade de produção usam proxies configuráveis baseados em metadados classificados e duração; não analisam áudio, frames, transcrição, linguagem sensível nem o estado real do canal.
+- Execuções simultâneas do Monetization Engine são idempotentes por vídeo e versão, mas podem recalcular as mesmas classificações. O score muda quando fatores, pesos, mapas ou a versão de cálculo mudam.
 
 ## Dados e metodologia
 
@@ -27,6 +29,7 @@
 - Métricas ausentes não devem ser convertidas automaticamente em zero.
 - Resultados só podem ser comparados dentro de contextos compatíveis de plataforma, região, período e amostra.
 - O Virality Score é relativo à amostra coletada e aos pesos v1; ele não reproduz nem prevê diretamente o algoritmo interno do YouTube.
+- O Monetization Score não estima receita, CPM, aprovação no Programa de Parcerias ou resultado de revisão de copyright. Ele compara somente os sinais heurísticos disponíveis no TrendLens.
 
 ## Segurança
 

@@ -114,3 +114,13 @@ O Virality Score aplica os pesos 35% velocity, 20% engagement, 20% outlier, 15% 
 ## Primeira execução do Metrics Engine
 
 A execução final processou 268 vídeos em 0,177 segundo, gerou 264 Virality Scores, 150 velocities e 11 baselines de canal. O score variou de 1,0765 a 8,8983, com média 5,1283, e nenhum valor violou as faixas tipadas. Não havia vídeos com três snapshots; portanto acceleration permaneceu `NULL`, conforme a regra de dados insuficientes.
+
+## Monetization Score
+
+O Monetization Engine usa originalidade, riscos e confiança produzidos pelo classificador, duração pública do vídeo e percentil de engajamento calculado pelo Metrics Engine. Elegibilidade de política deriva de um mapa por `source_type`; adequação a anunciantes e viabilidade de produção usam mapas por `format`. A confiança da classificação aproxima cada proxy de 0,5 quando a incerteza aumenta.
+
+A base positiva aplica pesos de 30% para originalidade, 25% para elegibilidade de política e 15% para adequação a anunciantes, viabilidade de produção e qualidade do engajamento. A penalidade combina 60% de risco autoral e 40% de risco de conteúdo reutilizado. Se o percentil de engajamento estiver ausente, seu peso é redistribuído entre os demais fatores, nunca convertido em zero. A definição completa está em [scoring.md](scoring.md).
+
+## Primeira execução do Monetization Engine
+
+A execução final processou 15 classificações em 0,076 segundo. Quatorze possuíam qualidade de engajamento observada, duas ficaram acima do limite de risco combinado e nenhuma violou as constraints. O score variou de 0,9065 a 5,5480, com média 3,4076. A amostra ainda é pequena e esses valores não devem ser generalizados como perfil do YouTube brasileiro.

@@ -94,7 +94,11 @@ Função SQL transacional que calcula métricas para o snapshot mais recente dos
 
 ### `video_monetization_scores`
 
-Mantém fatores positivos, riscos e resultado por versão de cálculo. O score representa adequação heurística a uma estratégia sustentável, não receita prevista nem decisão oficial do YouTube.
+Mantém fatores positivos, riscos, base positiva, risco combinado e resultado por versão de cálculo. `engagement_quality` aceita `NULL` quando o Metrics Engine ainda não produziu um percentil comparável; o peso ausente é redistribuído durante o cálculo. O score representa adequação heurística a uma estratégia sustentável, não receita prevista nem decisão oficial do YouTube.
+
+### `refresh_video_monetization_scores`
+
+Função SQL transacional que transforma classificações e métricas observadas em fatores normalizados, aplica pesos configuráveis e faz upsert idempotente por vídeo e versão. O retorno informa elegibilidade, persistência, disponibilidade de engajamento e quantidade de scores acima do limite operacional de risco.
 
 ### `category_statistics`
 
