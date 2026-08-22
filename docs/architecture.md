@@ -67,7 +67,13 @@ videos + video_snapshots + video_collection_matches
 video_classifications
         |
         v
-métricas + tendências
+04 - Metrics Engine & Virality Score
+        |
+        v
+video_metrics
+        |
+        v
+tendências
         |
         v
 recomendações + relatório
@@ -78,6 +84,8 @@ O collector consulta configurações e queries no PostgreSQL, processa uma query
 O Snapshot Tracker consulta a função `select_snapshot_candidates`, agrupa os vídeos vencidos em lotes de até 50 IDs, atualiza somente as estatísticas públicas via `videos.list` e insere uma nova linha em `video_snapshots`. A política de idade e intervalo fica em `settings`; o Schedule Trigger funciona apenas como verificação periódica da fila.
 
 O AI Content Classifier consulta `select_classification_candidates`, processa um vídeo por vez e conecta o Basic LLM Chain a um modelo NVIDIA e a um parser estruturado. A saída validada é persistida em colunas tipadas de `video_classifications`; falhas do modelo, do parser ou da persistência seguem rotas próprias para `pipeline_errors` e o loop continua.
+
+O Metrics Engine chama `refresh_video_metrics` em uma operação set-based. A função identifica o snapshot atual de cada vídeo elegível, deriva o histórico necessário, calcula baselines e percentis sobre a coorte completa e faz upsert idempotente em `video_metrics`. O n8n apenas inicia, audita e finaliza a operação; todos os números analíticos vêm do PostgreSQL.
 
 ## Persistência e inicialização
 

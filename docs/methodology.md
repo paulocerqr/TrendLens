@@ -102,3 +102,15 @@ As categorias derivadas da coleta são apenas pistas e não determinam a respost
 ## Primeira execução do AI Content Classifier
 
 A revisão final selecionou cinco candidatos, criou quatro classificações e ignorou uma linha já inserida por uma execução concorrente. O run terminou com zero falhas, cinco chamadas estimadas ao modelo e duração de 134,315 segundos. A execução concorrente também finalizou com sucesso, confirmando que o conflito por vídeo é tratado de forma idempotente.
+
+## Métricas e Virality Score
+
+O Metrics Engine calcula o snapshot atual de cada vídeo elegível em SQL. Rates exigem denominador positivo e mantêm `NULL` quando likes ou comentários estão ausentes. Velocity exige dois snapshots; acceleration exige três. O baseline do canal considera outros vídeos recentes e só é aceito quando alcança a amostra mínima configurada.
+
+Percentis são calculados para velocity, engagement, outlier e views. A coorte preferida combina plataforma, região e categoria; grupos pequenos usam o fallback de plataforma e região. Se o fallback também for insuficiente, o percentil permanece ausente.
+
+O Virality Score aplica os pesos 35% velocity, 20% engagement, 20% outlier, 15% views e 10% freshness. Pesos ausentes são redistribuídos proporcionalmente, e o score exige pelo menos três componentes. A definição completa está em [scoring.md](scoring.md).
+
+## Primeira execução do Metrics Engine
+
+A execução final processou 268 vídeos em 0,177 segundo, gerou 264 Virality Scores, 150 velocities e 11 baselines de canal. O score variou de 1,0765 a 8,8983, com média 5,1283, e nenhum valor violou as faixas tipadas. Não havia vídeos com três snapshots; portanto acceleration permaneceu `NULL`, conforme a regra de dados insuficientes.

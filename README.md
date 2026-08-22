@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-As Fases 1 e 2 foram concluídas. A Fase 3 possui migration, política de acompanhamento, testes SQL e workflow versionável implementados. O Snapshot Tracker seleciona vídeos vencidos por faixa de idade, consulta métricas em lotes de até 50 IDs e acrescenta observações históricas sem alterar snapshots anteriores.
+As Fases 1 a 5 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo com saída estruturada e calcula métricas derivadas e o Virality Score de forma versionada e auditável.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -66,7 +66,7 @@ Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apen
 
 ## Atualização de um banco existente
 
-Depois de atualizar o repositório para a Fase 3, aplique as migrations e os seeds idempotentes:
+Depois de atualizar o repositório para a Fase 5, aplique as migrations e os seeds idempotentes na ordem abaixo:
 
 ```bash
 docker compose exec -T postgres sh -c \
@@ -80,6 +80,14 @@ docker compose exec -T postgres sh -c \
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/migrations/004_video_snapshot_tracker.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/005_ai_content_classifier.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/006_metrics_engine.sql
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
@@ -112,6 +120,14 @@ Valide a fundação do AI Content Classifier:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/ai-content-classifier.sql
+```
+
+Valide o Metrics Engine e o Virality Score:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/metrics-engine.sql
 ```
 
 ## Integração com um n8n existente
@@ -154,6 +170,8 @@ O collector exportado, sem associações de credenciais, está em [workflows/01-
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow validado no deployment original possui ID `LTjMbH3UGW994lCA` e permanece inativo.
 
 O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow no deployment original possui ID `86iKeeCFXiiX3fki`, permanece inativo e não foi publicado.
+
+O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow validado no deployment original possui ID `zf3Wwl1aUINxrGEy`, permanece inativo e não foi publicado.
 
 ## Validação do collector
 
@@ -212,6 +230,20 @@ A execução manual da revisão final selecionou cinco candidatos e terminou com
 
 A validação também confirmou a idempotência entre execuções concorrentes: a chave primária de `video_classifications` impediu duplicação e o conflito foi contabilizado como item ignorado. O bootstrap temporário da migration foi removido depois do teste; a versão final possui 13 nodes, está inativa e não foi publicada.
 
+## Validação do Metrics Engine
+
+A revisão final calculou a coorte real de sete dias em uma única operação transacional:
+
+- 268 vídeos elegíveis e processados;
+- 264 Virality Scores;
+- 150 View Velocities;
+- 11 baselines de canal;
+- zero falhas e zero scores fora das faixas;
+- Virality Score entre 1,0765 e 8,8983, com média 5,1283;
+- duração total de 0,177 segundo na execução final.
+
+Nenhuma View Acceleration foi produzida porque os vídeos reais ainda não possuíam três snapshots. O campo permanece `NULL` até existir histórico suficiente. A fórmula completa e a estratégia de dados ausentes estão em [docs/scoring.md](docs/scoring.md).
+
 ## Segurança
 
 - Não publique a porta do PostgreSQL na internet.
@@ -224,6 +256,7 @@ A validação também confirmou a idempotência entre execuções concorrentes: 
 - [Arquitetura](docs/architecture.md)
 - [Modelo de dados](docs/data-model.md)
 - [Metodologia](docs/methodology.md)
+- [Metodologia de scoring](docs/scoring.md)
 - [Limitações](docs/limitations.md)
 
 ## Roadmap resumido

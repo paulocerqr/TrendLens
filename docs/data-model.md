@@ -86,7 +86,11 @@ Mantém uma classificação estruturada por vídeo, incluindo categoria opcional
 
 ### `video_metrics`
 
-Relaciona métricas derivadas ao snapshot que as originou. Percentis permanecem entre 0 e 1, enquanto Virality Score permanece entre 0 e 10.
+Relaciona métricas derivadas ao snapshot que as originou. Cada snapshot possui no máximo uma linha, atualizável de forma idempotente quando percentis da coorte mudam. A linha referencia o snapshot anterior, preserva `NULL` quando o histórico é insuficiente e registra a versão das fórmulas. Percentis permanecem entre 0 e 1, enquanto Virality Score permanece entre 0 e 10.
+
+### `refresh_video_metrics`
+
+Função SQL transacional que calcula métricas para o snapshot mais recente dos vídeos dentro da janela configurada. Percentis usam a coorte completa mesmo quando o limite operacional restringe quantas linhas são persistidas. O retorno resume elegibilidade, disponibilidade das métricas e quantidade de scores produzidos para alimentar `pipeline_runs`.
 
 ### `video_monetization_scores`
 
