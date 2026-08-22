@@ -1,0 +1,193 @@
+{
+  "name": "04 - TrendLens - Metrics Engine & Virality Score",
+  "nodes": [
+    {
+      "id": "2a586226-ee31-4cfc-b28a-9e368c1f3427",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        80,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "d188a4f1-0f25-4364-98c9-dfb3b4a5e4d7",
+      "name": "Iniciar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        400,
+        320
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key, value) AS values\n  FROM settings\n  WHERE key = ANY (ARRAY[\n    'METRICS_MAX_VIDEOS_PER_RUN','METRICS_ANALYSIS_WINDOW_DAYS',\n    'METRICS_CHANNEL_BASELINE_WINDOW_DAYS','METRICS_CHANNEL_BASELINE_MIN_VIDEOS',\n    'METRICS_FRESHNESS_HORIZON_HOURS','METRICS_MIN_VIRALITY_COMPONENTS',\n    'METRICS_CALCULATION_VERSION','MIN_SAMPLE_SIZE','COMMENT_WEIGHT',\n    'VIRALITY_VELOCITY_WEIGHT','VIRALITY_ENGAGEMENT_WEIGHT',\n    'VIRALITY_OUTLIER_WEIGHT','VIRALITY_VIEWS_WEIGHT','VIRALITY_FRESHNESS_WEIGHT'\n  ])\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '04 - TrendLens - Metrics Engine & Virality Score','running',\n         jsonb_build_object(\n           'max_videos_per_run',coalesce((values ->> 'METRICS_MAX_VIDEOS_PER_RUN')::integer,1000),\n           'calculation_version',coalesce(values ->> 'METRICS_CALCULATION_VERSION','v1'),\n           'configuration',coalesce(values,'{}'::jsonb)\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,\n       (metadata ->> 'max_videos_per_run')::integer AS max_videos_per_run,\n       metadata ->> 'calculation_version' AS calculation_version\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "57b7399d-cfd6-4f81-a902-27eb39bbccc5",
+      "name": "Calcular métricas e Virality Score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        700,
+        220
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH result AS (\n  SELECT * FROM refresh_video_metrics($2::integer,$3::timestamptz)\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=result.candidates_selected::integer,\n      items_processed=result.metrics_upserted::integer,\n      items_skipped=greatest(result.candidates_selected-result.metrics_upserted,0)::integer,\n      metadata=metadata || jsonb_build_object(\n        'eligible_videos',result.eligible_videos,\n        'virality_scored',result.virality_scored,\n        'velocity_available',result.velocity_available,\n        'acceleration_available',result.acceleration_available,\n        'channel_baseline_available',result.channel_baseline_available,\n        'calculation_version',result.calculation_version,\n        'calculated_at',result.calculated_at\n      )\n  FROM result\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.items_received,updated.items_processed,\n       updated.items_skipped,updated.items_failed,result.*\nFROM updated CROSS JOIN result;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.max_videos_per_run, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "64c29ff8-134f-49f2-9ce6-be07e7fc86ee",
+      "name": "Finalizar execução",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1000,
+        120
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),\n      status='success',\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at)))\n  WHERE id=$1::bigint\n  RETURNING *\n)\nSELECT id AS pipeline_run_id,workflow,status,items_received,items_processed,\n       items_skipped,items_failed,duration_seconds,metadata,started_at,finished_at\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "8c046f7a-3a4d-4cf2-a3b9-ab48d5c746da",
+      "name": "Calcular métricas a cada hora",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        440
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ba329abe-0cfb-49f9-b8eb-e9c768ea22d9",
+      "name": "Registrar erro de cálculo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1000,
+        380
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (\n    pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata\n  )\n  SELECT args.run_id,'04 - TrendLens - Metrics Engine & Virality Score',\n         'Calcular métricas e Virality Score','metrics_calculation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,'{}'::jsonb\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar execução\").item.json.pipeline_run_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha no Metrics Engine\") ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Iniciar execução": {
+      "main": [
+        [
+          {
+            "node": "Calcular métricas e Virality Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular métricas e Virality Score": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de cálculo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular métricas a cada hora": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 1800
+  },
+  "tags": []
+}

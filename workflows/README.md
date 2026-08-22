@@ -67,3 +67,20 @@ A exportação não contém associações de credenciais. Depois de importar, at
 O workflow deve permanecer inativo durante o desenvolvimento. Enquanto estiver inativo, o Schedule Trigger não executará.
 
 A execução integrada final no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão final possui 13 nodes, permanece inativa e não publicada.
+
+## 04 - TrendLens - Metrics Engine & Virality Score
+
+O arquivo [04-metrics-engine.json](04-metrics-engine.json) implementa:
+
+- cálculo em lote de Like Rate, Comment Rate e Engagement Rate;
+- View Velocity e View Acceleration a partir dos snapshots anteriores;
+- mediana recente do canal, Relative Performance e Outlier Score;
+- percentis por coorte comparável com fallback explícito;
+- Freshness Score e Virality Score versionado de 0 a 10;
+- recálculo idempotente por snapshot;
+- logs de execução e erro sanitizado;
+- Manual Trigger e Schedule Trigger a cada hora.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `zf3Wwl1aUINxrGEy` processou 268 vídeos e produziu 264 Virality Scores, 150 velocities e 11 baselines de canal, sem falhas. O recálculo imediato preservou 268 linhas, confirmou zero scores fora das faixas e terminou em 0,177 segundo. O workflow final possui seis nodes, permanece inativo e não publicado.
