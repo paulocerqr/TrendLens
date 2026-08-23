@@ -1,0 +1,172 @@
+{
+  "name": "11 - TrendLens - Phase 12 Validation",
+  "nodes": [
+    {
+      "id": "dc5e7797-45f9-4df9-8e00-de46368190d0",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "00820a34-5b55-44e3-a4fe-26e680de2a6c",
+      "name": "Iniciar validação",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        280,
+        180
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key,value) AS values\n  FROM settings\n  WHERE key LIKE 'VALIDATION_%'\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '11 - TrendLens - Phase 12 Validation','running',\n         jsonb_build_object(\n           'configuration',coalesce(values,'{}'::jsonb),\n           'window_policy','closed_hour',\n           'quantitative_source','postgresql',\n           'manual_classifier_review',true,\n           'automatic_weight_adjustment',false\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,metadata\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "1a9e8325-a75f-475e-841f-ec11cff1395a",
+      "name": "Gerar e persistir validação",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        560,
+        180
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH generated AS (\n  SELECT * FROM build_phase12_validation($2::timestamptz)\n), inserted AS (\n  INSERT INTO pipeline_validation_reports (\n    period_start,period_end,generated_at,validation_version,\n    overall_status,sample_size,reviewed_classifications,report_json,source_hash\n  )\n  SELECT\n    period_start,period_end,generated_at,validation_version,\n    overall_status,sample_size,reviewed_classifications,report_json,source_hash\n  FROM generated\n  ON CONFLICT (period_start,period_end,validation_version,source_hash)\n  DO NOTHING\n  RETURNING pipeline_validation_reports.*,true AS report_created\n), resolved AS (\n  SELECT * FROM inserted\n  UNION ALL\n  SELECT existing.*,false AS report_created\n  FROM pipeline_validation_reports existing\n  CROSS JOIN generated\n  WHERE NOT EXISTS (SELECT 1 FROM inserted)\n    AND existing.period_start=generated.period_start\n    AND existing.period_end=generated.period_end\n    AND existing.validation_version=generated.validation_version\n    AND existing.source_hash=generated.source_hash\n  LIMIT 1\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=resolved.sample_size,\n      metadata=metadata || jsonb_build_object(\n        'validation_report_id',resolved.id,\n        'report_created',resolved.report_created,\n        'overall_status',resolved.overall_status,\n        'sample_size',resolved.sample_size,\n        'reviewed_classifications',resolved.reviewed_classifications,\n        'period_start',resolved.period_start,\n        'period_end',resolved.period_end,\n        'validation_version',resolved.validation_version,\n        'source_hash',resolved.source_hash\n      )\n  FROM resolved\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.id\n)\nSELECT\n  updated.id AS pipeline_run_id,\n  resolved.id AS validation_report_id,\n  resolved.report_created,\n  resolved.overall_status,\n  resolved.period_start,\n  resolved.period_end,\n  resolved.generated_at,\n  resolved.validation_version,\n  resolved.sample_size,\n  resolved.reviewed_classifications,\n  resolved.source_hash\nFROM updated CROSS JOIN resolved;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "212e0274-541e-4dd6-a18b-518c535f2a96",
+      "name": "Finalizar e preparar revisão",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        840,
+        100
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id\n), candidates AS (\n  SELECT to_jsonb(candidate) AS item\n  FROM select_classification_review_candidates(30,'phase12-v1') candidate\n), candidate_payload AS (\n  SELECT count(*)::integer AS candidate_count,\n         coalesce(jsonb_agg(item),'[]'::jsonb) AS items\n  FROM candidates\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),\n      status='success',\n      items_processed=CASE WHEN (metadata ->> 'report_created')::boolean THEN 1 ELSE 0 END,\n      items_skipped=CASE WHEN (metadata ->> 'report_created')::boolean THEN 0 ELSE 1 END,\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at))),\n      metadata=metadata || jsonb_build_object(\n        'manual_review_candidates',candidate_payload.candidate_count\n      )\n  FROM args\n  CROSS JOIN candidate_payload\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT\n  updated.id AS pipeline_run_id,\n  updated.workflow,\n  updated.status,\n  updated.items_received,\n  updated.items_processed,\n  updated.items_skipped,\n  updated.items_failed,\n  updated.duration_seconds,\n  updated.metadata,\n  updated.started_at,\n  updated.finished_at,\n  report.id AS validation_report_id,\n  report.overall_status,\n  report.period_start,\n  report.period_end,\n  report.validation_version,\n  report.sample_size,\n  report.reviewed_classifications,\n  report.report_json,\n  report.source_hash,\n  candidate_payload.candidate_count AS review_candidate_count,\n  candidate_payload.items AS review_candidates\nFROM updated\nCROSS JOIN candidate_payload\nLEFT JOIN pipeline_validation_reports report\n  ON report.id=(updated.metadata ->> 'validation_report_id')::bigint;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b60b9f44-54ee-4fd5-84c0-23a31b5fb536",
+      "name": "Registrar erro de validação",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        840,
+        320
+      ],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS node_name,$3::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (\n    pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata\n  )\n  SELECT args.run_id,'11 - TrendLens - Phase 12 Validation',\n         left(args.node_name,255),'phase12_validation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,jsonb_build_object(\n           'manual_classifier_review',true,\n           'automatic_weight_adjustment',false\n         )\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar validação\").item.json.pipeline_run_id, \"Gerar/finalizar validação\", \"Falha na validação da Fase 12 após retries\" ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Iniciar validação": {
+      "main": [
+        [
+          {
+            "node": "Gerar e persistir validação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar e persistir validação": {
+      "main": [
+        [
+          {
+            "node": "Finalizar e preparar revisão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de validação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalizar e preparar revisão": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Registrar erro de validação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar validação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
+  }
+}
