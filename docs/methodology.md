@@ -199,3 +199,13 @@ Retries representam as novas tentativas registradas quando um erro terminal pers
 A execução final do workflow analisou 69 runs na janela fechada, com 48 sucessos, três execuções parciais, 18 falhas, 21 eventos de erro e dois retries registrados. Foram observadas 25 classificações, 227 snapshots e 31 vídeos distintos cuja métrica mais recente atingia o limite de alta viralidade. A saúde geral ficou `critical` porque o Snapshot Tracker acumulou falhas de itens omitidos pela API; Recommendation AI ficou `degraded` e seis workflows ficaram saudáveis.
 
 O snapshot foi persistido sem falha, o bootstrap da migration foi removido e o workflow final executou em 0,102 segundo. Ele possui seis nodes, permanece inativo e não publicado.
+
+## Validação da Fase 12
+
+A validação usa uma janela fechada de sete dias e três portas independentes antes de permitir revisão de pesos: três dias de observações, 30 avaliações humanas do classificador e amostra 30 em todas as seis categorias obrigatórias. A decisão é conservadora: qualquer porta ausente mantém os pesos v1.
+
+Snapshots são verificados por cobertura, monotonicidade e cadência. O classificador é auditado em uma amostra determinística estratificada por categoria e confiança; as decisões humanas ficam separadas das respostas do modelo. Os scores são avaliados por quantis, caudas, disponibilidade de componentes e correlações descritivas.
+
+A primeira execução real analisou 210 vídeos, 568 snapshots, 45 classificações, 210 Virality Scores e 45 Monetization Scores. O período observado era de 1,236 dia e nenhuma revisão humana havia sido concluída. Nenhuma das seis categorias atingiu a amostra mínima; Tutoriais e Storytelling ainda não estavam representadas no bucket comparável.
+
+O componente de outlier estava ausente nos 210 Virality Scores, enquanto velocity apresentou correlação de `0,9074` com o resultado. Esse diagnóstico pode indicar dominância temporária causada pela redistribuição de pesos, mas a amostra ainda não autoriza calibração. O relatório retornou `insufficient_data` e `hold_v1_collect_more_data`; nenhum peso foi alterado. A análise completa está em [validation.md](validation.md).

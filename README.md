@@ -4,7 +4,9 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-As Fases 1 a 7 foram concluídas. O pipeline já coleta vídeos, acompanha snapshots, classifica o conteúdo e calcula métricas, Virality Score, Monetization Score e tendências agregadas de forma versionada e auditável.
+As Fases 1 a 11 foram concluídas e a Fase 12 está em validação observacional. O pipeline coleta vídeos, acompanha snapshots, classifica conteúdo, calcula scores, agrega tendências, ranqueia oportunidades, produz recomendações e relatórios e consolida a própria saúde operacional.
+
+A primeira execução da Fase 12 foi concluída tecnicamente, mas retornou `insufficient_data`: o histórico real ainda não atingiu três dias, não há 30 revisões humanas e as seis categorias obrigatórias ainda não possuem amostra 30. Os pesos v1 permanecem inalterados.
 
 O MVP terá como foco vídeos públicos do YouTube, candidatos a Shorts, em português e voltados ao mercado brasileiro. Nenhum número analítico será apresentado como fato antes de ser calculado a partir dos dados coletados.
 
@@ -66,7 +68,7 @@ Os scripts de `/docker-entrypoint-initdb.d` são executados automaticamente apen
 
 ## Atualização de um banco existente
 
-Depois de atualizar o repositório para a Fase 7, aplique as migrations e os seeds idempotentes na ordem abaixo:
+Depois de atualizar o repositório, aplique as migrations e os seeds idempotentes na ordem abaixo:
 
 ```bash
 docker compose exec -T postgres sh -c \
@@ -96,6 +98,26 @@ docker compose exec -T postgres sh -c \
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/migrations/008_trend_engine.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/009_opportunity_engine.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/010_recommendation_ai.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/011_report_engine.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/012_observability.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/013_validation.sql
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
@@ -152,6 +174,14 @@ Valide o Trend Engine:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/trend-engine.sql
+```
+
+Valide a Fase 12:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/validation.sql
 ```
 
 ## Integração com um n8n existente
@@ -299,6 +329,14 @@ A execução final agregou a janela atual de sete dias em dimensões comparávei
 
 As 104 direções permaneceram `insufficient_data`, pois nenhum grupo atingiu a amostra mínima padrão de 30 vídeos nas janelas atual e anterior. O sistema não fabricou uma tendência com base em uma amostra pequena.
 
+## Validação observacional da Fase 12
+
+O workflow `11 - TrendLens - Phase 12 Validation` persiste um relatório quantitativo e devolve uma fila estratificada de 30 classificações para avaliação humana. Ele audita snapshots, cobertura do classificador, quantis e caudas dos scores, disponibilidade dos componentes e a comparação Movie/TV Clips contra Curiosidades, Tutoriais, Podcast Clips, Tecnologia e Storytelling.
+
+A primeira execução real analisou 210 vídeos e 568 snapshots. Apenas 45 vídeos estavam classificados, o período observado era de 1,236 dia e nenhuma revisão humana havia sido registrada. O componente de outlier estava ausente em todos os 210 Virality Scores e nenhuma categoria comparável atingiu a amostra mínima. O sistema manteve os pesos v1 e registrou a decisão `hold_v1_collect_more_data`.
+
+O procedimento, os resultados reais e o contrato de revisão estão em [docs/validation.md](docs/validation.md).
+
 ## Segurança
 
 - Não publique a porta do PostgreSQL na internet.
@@ -312,6 +350,7 @@ As 104 direções permaneceram `insufficient_data`, pois nenhum grupo atingiu a 
 - [Modelo de dados](docs/data-model.md)
 - [Metodologia](docs/methodology.md)
 - [Metodologia de scoring](docs/scoring.md)
+- [Validação da Fase 12](docs/validation.md)
 - [Limitações](docs/limitations.md)
 
 ## Roadmap resumido
@@ -323,6 +362,8 @@ As 104 direções permaneceram `insufficient_data`, pois nenhum grupo atingiu a 
 5. Métricas e Virality Score.
 6. Monetization Score.
 7. Tendências, oportunidades, recomendações e relatório.
+8. Observabilidade do pipeline.
+9. Validação observacional, revisão humana e calibração versionada.
 
 ## Licença
 

@@ -32,6 +32,11 @@
 - Métricas operacionais podem ser revisadas por atualizações tardias das tabelas analíticas. Nesse caso, uma nova fonte produz outro snapshot para a mesma janela sem sobrescrever o anterior.
 - A saúde `critical` indica falhas observadas ou execução travada; não determina automaticamente a causa nem corrige o workflow afetado.
 - A Fase 11 persiste JSON no PostgreSQL e o devolve na execução do n8n. Não há dashboard, endpoint público nem canal de notificação.
+- A validação de snapshots sinaliza lacunas de cadência e reduções de contadores, mas não determina sozinha a causa. Likes e comentários podem diminuir por ações legítimas da plataforma.
+- A correlação entre componentes e scores é descritiva e parcialmente mecânica, pois os componentes participam da própria fórmula. Ela serve para detectar possível dominância, não para justificar causalidade ou um novo peso isoladamente.
+- A comparação da Fase 12 usa o bucket agregado mais recente cujo fim não ultrapassa a janela fechada. Pode existir atraso entre uma nova classificação e sua presença na comparação até a próxima execução compatível do Trend Engine.
+- Revisão por IA não substitui a avaliação humana exigida pela Fase 12. Enquanto o mínimo de revisões não for atingido, o sistema mantém `insufficient_data`.
+- Os primeiros dados reais cobrem menos de três dias e não incluem amostra suficiente nas seis categorias obrigatórias. Os valores iniciais são exploratórios e não confirmam a hipótese Movie/TV Clips.
 
 ## Dados e metodologia
 

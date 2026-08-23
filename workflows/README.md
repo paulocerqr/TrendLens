@@ -196,3 +196,22 @@ A exportação não contém associações de credenciais. Depois de importar, at
 A execução integrada final no workflow `J4xto6VE3UahmSmo` analisou 69 runs, 21 eventos de erro e dois retries na janela de 24 horas. Ela contabilizou 25 classificações, 227 snapshots e 31 vídeos distintos de alta viralidade. O estado ficou `critical` por falhas do Snapshot Tracker; seis workflows ficaram saudáveis, Recommendation AI ficou degradado e o collector ficou sem execução na janela.
 
 O bootstrap temporário da migration foi removido. O workflow final possui seis nodes, permanece inativo e não publicado.
+
+## 11 - TrendLens - Phase 12 Validation
+
+O arquivo [11-validation.json](11-validation.json) implementa:
+
+- relatório quantitativo em uma janela fechada de sete dias;
+- cobertura de vídeos, classificações, métricas e grupos amostrais;
+- qualidade e cadência dos snapshots;
+- fila estratificada de 30 classificações para revisão humana;
+- quantis, caudas, disponibilidade e correlações dos scores;
+- comparação Movie/TV Clips contra cinco categorias obrigatórias;
+- portas explícitas antes de qualquer calibração de pesos;
+- persistência idempotente e erro sanitizado.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A primeira execução integrada no workflow `sWGVyfbhaiGfanPZ` analisou 210 vídeos, 568 snapshots e 45 classificações. O relatório foi persistido em 0,120 segundo; a repetição reutilizou o mesmo registro em 0,119 segundo. O estado permaneceu `insufficient_data`, pois havia somente 1,236 dia de observação, nenhuma revisão humana e amostras insuficientes nas seis categorias. Nenhum peso foi alterado.
+
+O bootstrap temporário da migration foi removido. O workflow final possui cinco nodes, permanece inativo e não publicado.

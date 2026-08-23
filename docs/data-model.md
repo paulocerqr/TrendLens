@@ -156,6 +156,24 @@ Função SQL estável que consolida `pipeline_runs`, `pipeline_errors` e indicad
 
 A função considera somente a métrica mais recente de cada vídeo para evitar contagem duplicada no indicador de alta viralidade. Eventos recentes não incluem mensagem nem metadata do erro.
 
+## Validação
+
+### `classification_validation_reviews`
+
+Armazena avaliações humanas sem alterar a classificação produzida pela IA. Cada linha identifica vídeo, versão do prompt e pessoa revisora, mantém dez decisões booleanas, correções opcionais em JSONB e notas limitadas. A identidade lógica impede que a mesma pessoa registre duas revisões do mesmo vídeo e prompt.
+
+### `select_classification_review_candidates`
+
+Seleciona vídeos ainda não revisados na versão do prompt, estratificados por categoria e confiança. A seed torna a amostragem reproduzível e a saída inclui metadados públicos, classificação atual e grupos amostrais de proveniência.
+
+### `pipeline_validation_reports`
+
+Persiste o contrato JSON da Fase 12 por janela, versão e hash da fonte. O estado pode ser `insufficient_data`, `needs_attention` ou `ready_for_weight_review`. O relatório preserva cobertura, qualidade dos snapshots, resultado das revisões humanas, diagnóstico dos scores, comparação de categorias e decisão sobre pesos.
+
+### `build_phase12_validation`
+
+Consolida a janela fechada configurável, verifica as portas de prontidão e executa a análise Movie/TV Clips vs outros formatos. A função apenas reporta a decisão de calibração; ela nunca altera configurações ou recalcula scores com pesos novos.
+
 ## Regras de exclusão
 
 Entidades dependentes de um vídeo usam `ON DELETE CASCADE`. O sistema não implementará exclusão automática de vídeos durante o MVP. Categorias referenciadas por queries usam `ON DELETE RESTRICT`, preservando a configuração operacional.

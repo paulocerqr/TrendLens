@@ -138,6 +138,26 @@ pipeline_observability_reports
 
 A janela termina no início da hora corrente. Isso impede que a própria execução de observabilidade entre no período analisado e fornece limites temporais estáveis para repetição e comparação. O snapshot mantém somente tipo, node, identificador externo e retry count dos erros recentes; mensagem e metadata não são copiadas para o JSON consolidado.
 
+A Fase 12 adiciona uma camada de validação manual e quantitativa sem modificar as saídas anteriores. O workflow `11 - TrendLens - Phase 12 Validation` chama `build_phase12_validation`, persiste um relatório idempotente e devolve uma amostra estratificada de classificações ainda não revisadas.
+
+```text
+videos + snapshots + classifications + scores + category_statistics
+                              |
+                              v
+11 - Phase 12 Validation
+        |
+        +-- pipeline_validation_reports
+        +-- select_classification_review_candidates
+                              |
+                              v
+                revisão humana separada
+                              |
+                              v
+          classification_validation_reviews
+```
+
+As revisões humanas não sobrescrevem `video_classifications`. Os pesos permanecem em `settings` e só se tornam elegíveis para calibração depois que o relatório comprova período observacional, revisão humana e amostras mínimas suficientes.
+
 ## Persistência e inicialização
 
 Os scripts em `database/` são montados em `/docker-entrypoint-initdb.d`. A imagem oficial do PostgreSQL executa esses arquivos somente ao inicializar um volume vazio.
