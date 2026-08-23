@@ -140,14 +140,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS reports_source_version_idx
 CREATE INDEX IF NOT EXISTS reports_generated_context_idx
     ON reports (generated_at DESC, platform, region, language);
 
+CREATE UNIQUE INDEX IF NOT EXISTS pipeline_observability_source_idx
+    ON pipeline_observability_reports (
+        period_start,
+        period_end,
+        observability_version,
+        source_hash
+    );
+
+CREATE INDEX IF NOT EXISTS pipeline_observability_generated_idx
+    ON pipeline_observability_reports (generated_at DESC, overall_status);
+
 CREATE INDEX IF NOT EXISTS pipeline_runs_workflow_started_idx
     ON pipeline_runs (workflow, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS pipeline_runs_started_at_idx
+    ON pipeline_runs (started_at DESC);
 
 CREATE INDEX IF NOT EXISTS pipeline_runs_status_started_idx
     ON pipeline_runs (status, started_at DESC);
 
 CREATE INDEX IF NOT EXISTS pipeline_errors_workflow_occurred_idx
     ON pipeline_errors (workflow, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS pipeline_errors_occurred_at_idx
+    ON pipeline_errors (occurred_at DESC);
 
 CREATE INDEX IF NOT EXISTS pipeline_errors_run_idx
     ON pipeline_errors (pipeline_run_id, occurred_at DESC)
