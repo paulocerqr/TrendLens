@@ -1,0 +1,191 @@
+{
+  "name": "10 - TrendLens - Observability",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "id": "1cc271d4-2ac1-45e3-80f4-11daee2d76d0",
+      "name": "Executar manualmente"
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH config AS (\n  SELECT jsonb_object_agg(key,value) AS values\n  FROM settings\n  WHERE key = ANY (ARRAY[\n    'OBSERVABILITY_PERIOD','OBSERVABILITY_VERSION','OBSERVABILITY_STALE_RUN_MINUTES',\n    'OBSERVABILITY_HIGH_VIRALITY_THRESHOLD','OBSERVABILITY_HIGH_OPPORTUNITY_THRESHOLD',\n    'OBSERVABILITY_ERROR_LIMIT','OBSERVABILITY_TIMEZONE'\n  ])\n), started AS (\n  INSERT INTO pipeline_runs (workflow,status,metadata)\n  SELECT '10 - TrendLens - Observability','running',\n         jsonb_build_object(\n           'configuration',coalesce(values,'{}'::jsonb),\n           'window_policy','closed_hour',\n           'quantitative_source','postgresql',\n           'sensitive_error_fields_exposed',false\n         )\n  FROM config\n  RETURNING id,started_at,metadata\n)\nSELECT id AS pipeline_run_id,started_at AS run_started_at,metadata\nFROM started;",
+        "options": {
+          "queryBatching": "single",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        560,
+        220
+      ],
+      "id": "197d6040-bf3f-4533-bde2-73916eec93bc",
+      "name": "Iniciar execução",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH generated AS (\n  SELECT * FROM build_pipeline_observability($2::timestamptz)\n), inserted AS (\n  INSERT INTO pipeline_observability_reports (\n    period_start,period_end,generated_at,observability_version,\n    overall_status,workflow_count,run_count,error_count,retry_count,\n    report_json,source_hash\n  )\n  SELECT\n    period_start,period_end,generated_at,observability_version,\n    overall_status,workflow_count,run_count,error_count,retry_count,\n    report_json,source_hash\n  FROM generated\n  ON CONFLICT (period_start,period_end,observability_version,source_hash)\n  DO NOTHING\n  RETURNING pipeline_observability_reports.*,true AS report_created\n), resolved AS (\n  SELECT * FROM inserted\n  UNION ALL\n  SELECT existing.*,false AS report_created\n  FROM pipeline_observability_reports existing\n  CROSS JOIN generated\n  WHERE NOT EXISTS (SELECT 1 FROM inserted)\n    AND existing.period_start=generated.period_start\n    AND existing.period_end=generated.period_end\n    AND existing.observability_version=generated.observability_version\n    AND existing.source_hash=generated.source_hash\n  LIMIT 1\n), updated AS (\n  UPDATE pipeline_runs\n  SET items_received=resolved.workflow_count,\n      items_processed=CASE WHEN resolved.report_created THEN 1 ELSE 0 END,\n      items_skipped=CASE WHEN resolved.report_created THEN 0 ELSE 1 END,\n      metadata=metadata || jsonb_build_object(\n        'observability_report_id',resolved.id,\n        'report_created',resolved.report_created,\n        'overall_status',resolved.overall_status,\n        'workflows_observed',resolved.workflow_count,\n        'runs_observed',resolved.run_count,\n        'error_events',resolved.error_count,\n        'retries_recorded',resolved.retry_count,\n        'period_start',resolved.period_start,\n        'period_end',resolved.period_end,\n        'observability_version',resolved.observability_version,\n        'source_hash',resolved.source_hash\n      )\n  FROM resolved\n  WHERE pipeline_runs.id=$1::bigint\n  RETURNING pipeline_runs.*\n)\nSELECT\n  updated.id AS pipeline_run_id,\n  resolved.id AS observability_report_id,\n  resolved.report_created,resolved.overall_status,\n  resolved.period_start,resolved.period_end,resolved.generated_at,\n  resolved.observability_version,resolved.workflow_count,\n  resolved.run_count,resolved.error_count,resolved.retry_count,\n  resolved.report_json,resolved.source_hash\nFROM updated CROSS JOIN resolved;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id, $json.run_started_at ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        840,
+        220
+      ],
+      "id": "b775f7ef-f75a-400d-92e5-8be3617c5c22",
+      "name": "Gerar e persistir observabilidade",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=coalesce(finished_at,current_timestamp),\n      status='success',\n      duration_seconds=coalesce(duration_seconds,extract(epoch FROM (current_timestamp-started_at)))\n  WHERE id=$1::bigint\n  RETURNING *\n)\nSELECT\n  updated.id AS pipeline_run_id,updated.workflow,updated.status,\n  updated.items_received,updated.items_processed,updated.items_skipped,\n  updated.items_failed,updated.duration_seconds,updated.metadata,\n  updated.started_at,updated.finished_at,\n  report.id AS observability_report_id,report.overall_status,\n  report.report_json,report.source_hash\nFROM updated\nLEFT JOIN pipeline_observability_reports report\n  ON report.id=(updated.metadata ->> 'observability_report_id')::bigint;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $json.pipeline_run_id ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1120,
+        140
+      ],
+      "id": "9b3a09df-17d7-4b23-837f-30f92f69e79b",
+      "name": "Finalizar execução",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "WITH args AS (\n  SELECT $1::bigint AS run_id,$2::text AS message\n), logged AS (\n  INSERT INTO pipeline_errors (\n    pipeline_run_id,workflow,node,error_type,error_message,retry_count,metadata\n  )\n  SELECT args.run_id,'10 - TrendLens - Observability',\n         'Gerar e persistir observabilidade','observability_generation_error',\n         left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),\n         2,jsonb_build_object(\n           'window_policy','closed_hour',\n           'sensitive_error_fields_exposed',false\n         )\n  FROM args\n  RETURNING id\n), updated AS (\n  UPDATE pipeline_runs\n  SET finished_at=current_timestamp,status='failed',items_failed=items_failed+1,\n      duration_seconds=extract(epoch FROM (current_timestamp-started_at))\n  FROM args\n  WHERE pipeline_runs.id=args.run_id\n  RETURNING pipeline_runs.*\n)\nSELECT updated.id AS pipeline_run_id,updated.status,updated.items_failed,\n       (SELECT id FROM logged) AS pipeline_error_id\nFROM updated;",
+        "options": {
+          "queryBatching": "single",
+          "queryReplacement": "={{ [ $(\"Iniciar execução\").item.json.pipeline_run_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha na observabilidade\") ] }}",
+          "largeNumbersOutput": "text"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        1120,
+        340
+      ],
+      "id": "67533790-42d9-44bc-8ea5-a0a129e8bec3",
+      "name": "Registrar erro de observabilidade",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        320
+      ],
+      "id": "89b562de-0a9c-4cdd-80ac-6612fac0ad52",
+      "name": "Auditar a cada hora"
+    }
+  ],
+  "connections": {
+    "Iniciar execução": {
+      "main": [
+        [
+          {
+            "node": "Gerar e persistir observabilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar e persistir observabilidade": {
+      "main": [
+        [
+          {
+            "node": "Finalizar execução",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar erro de observabilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auditar a cada hora": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
+  }
+}
