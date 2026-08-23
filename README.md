@@ -219,7 +219,7 @@ O workflow `00 - TrendLens - PostgreSQL Smoke Test` foi executado com sucesso co
 
 O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workflows/00-postgresql-smoke-test.json).
 
-O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json).
+O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json). O workflow do deployment original possui ID `yXv20DXsRyIyoat2` e está publicado e ativo, com coleta a cada três horas no minuto 5 em `America/Sao_Paulo`; a exportação versionável permanece inativa.
 
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow validado no deployment original possui ID `LTjMbH3UGW994lCA` e permanece inativo.
 
@@ -233,7 +233,7 @@ O Monetization Engine exportado está em [workflows/06-monetization-engine.json]
 
 ## Validação do collector
 
-O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi testado manualmente. A execução de validação final processou quatro combinações de query e grupo amostral:
+O workflow `01 - TrendLens - YouTube Data Collector` foi testado manualmente antes da publicação. A validação inicial processou quatro combinações de query e grupo amostral:
 
 - 100 resultados recebidos;
 - 100 itens processados;
@@ -244,6 +244,8 @@ O workflow `01 - TrendLens - YouTube Data Collector` permanece inativo e foi tes
 - nenhum item ignorado e nenhum erro.
 
 Os contadores foram persistidos em `pipeline_runs`. O resultado reflete apenas essa execução de teste e não constitui uma análise de tendências.
+
+Uma nova execução integrada imediatamente anterior à ativação recebeu 100 resultados, processou 98 candidatos, ignorou dois itens e terminou sem falhas em 4,036 segundos. Ela registrou 98 vídeos novos, 98 correspondências e 98 snapshots, com oito chamadas de API e quatro unidades estimadas no bucket de busca. Em seguida, a versão com 17 nodes foi publicada e ativada com Schedule Trigger a cada três horas, no minuto 5, em `America/Sao_Paulo`.
 
 ## Política de snapshots
 

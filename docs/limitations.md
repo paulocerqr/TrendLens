@@ -6,6 +6,8 @@
 - O teste integrado n8n para PostgreSQL depende do clone e deployment no servidor e pertence à Fase 1B.
 - Scripts de bootstrap não substituem migrations em volumes já inicializados.
 - A estimativa de quota armazenada em `pipeline_runs` dependerá da contabilização implementada pelo collector.
+- O Collector agenda oito ciclos por dia e limita cada ciclo a quatro queries, mas execuções manuais adicionais também consomem quota. Alterações em `MAX_QUERIES_PER_RUN`, na frequência ou no limite da API precisam ser avaliadas em conjunto.
+- O Schedule Trigger do Collector não repõe automaticamente um ciclo perdido enquanto o n8n estiver indisponível. A ordenação pelas queries menos recentemente coletadas reduz a lacuna nos ciclos seguintes, sem reproduzir retroativamente a execução omitida.
 - O Schedule Trigger do Snapshot Tracker verifica candidatos a cada 15 minutos; os intervalos efetivos por vídeo são aplicados pelo PostgreSQL e podem ter atraso de até um ciclo de verificação.
 - Execuções simultâneas do Snapshot Tracker não são coordenadas por um lock distribuído no MVP. A operação é idempotente para o mesmo vídeo e instante de execução, mas dois runs iniciados em instantes diferentes podem coletar observações muito próximas.
 - Execuções simultâneas do AI Content Classifier podem selecionar os mesmos candidatos; a chave primária por vídeo impede duplicação, mas uma das execuções será contabilizada como ignorada após consumir uma chamada ao modelo.

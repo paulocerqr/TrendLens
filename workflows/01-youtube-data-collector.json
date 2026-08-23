@@ -14,6 +14,27 @@
       "parameters": {}
     },
     {
+      "id": "d2fb7d5d-bd72-4fca-a71a-a2e3b25bb1c6",
+      "name": "Coletar a cada 3 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        120,
+        500
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "d65ed725-5ac1-4fac-921e-86dddd347faa",
       "name": "Iniciar execução e carregar queries",
       "type": "n8n-nodes-base.postgres",
@@ -427,6 +448,17 @@
         ]
       ]
     },
+    "Coletar a cada 3 horas": {
+      "main": [
+        [
+          {
+            "node": "Iniciar execução e carregar queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Iniciar execução e carregar queries": {
       "main": [
         [
@@ -618,7 +650,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
   },
   "pinData": {},
   "tags": []

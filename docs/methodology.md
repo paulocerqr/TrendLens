@@ -15,6 +15,8 @@ As queries ficam em `collection_queries`, nunca fixadas no workflow. Cada query 
 
 O collector selecionará primeiro queries nunca executadas e depois as menos recentemente coletadas. `MAX_QUERIES_PER_RUN` limita cada execução e permite distribuir as queries ao longo do tempo.
 
+No deployment atual, o Schedule Trigger inicia uma coleta a cada três horas, no minuto 5, usando `America/Sao_Paulo`. Com quatro queries por execução, isso representa no máximo 32 buscas agendadas por dia, abaixo do limite diário configurado de 100 chamadas de busca. A seleção pelas queries menos recentemente coletadas distribui as 22 combinações ativas entre os ciclos.
+
 ## Janela e contexto
 
 Cada chamada de busca deverá usar:
@@ -70,7 +72,9 @@ Referências:
 
 As primeiras execuções foram manuais e limitadas a quatro combinações de query e grupo amostral, com até 25 resultados por busca. Elas validaram a credencial OAuth, o formato das respostas, a normalização, o upsert, o primeiro snapshot, a proveniência e os logs.
 
-A validação final recebeu 100 resultados, processou todos sem erro, registrou 99 vídeos novos, 1 duplicado, 100 correspondências de proveniência e 99 snapshots. O workflow permanece inativo até revisão explícita.
+A validação inicial recebeu 100 resultados, processou todos sem erro, registrou 99 vídeos novos, 1 duplicado, 100 correspondências de proveniência e 99 snapshots.
+
+Antes da ativação, uma nova execução integrada recebeu 100 resultados, processou 98 candidatos, ignorou dois itens e não registrou falhas. Ela persistiu 98 vídeos novos, 98 correspondências e 98 snapshots. Após essa revisão, o workflow foi publicado e ativado com o agendamento de três horas.
 
 Durante o teste, a passagem do timestamp do PostgreSQL pelo n8n revelou perda de precisão abaixo de milissegundos. A persistência passou a obter `pipeline_runs.started_at` diretamente do banco para manter uma chave temporal idêntica entre execução e snapshots. A finalização também usa uma referência explícita ao node inicial, pois a saída concluída do loop não preserva necessariamente o item de contexto.
 

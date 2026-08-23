@@ -25,11 +25,14 @@ O arquivo [01-youtube-data-collector.json](01-youtube-data-collector.json) imple
 - consulta de detalhes em lote para reduzir chamadas de API;
 - conversão de duração e classificação heurística de candidatos a Shorts;
 - upsert de vídeos, primeiro snapshot e proveniência da amostra;
-- logs em `pipeline_runs` e `pipeline_errors` com retries limitados.
+- logs em `pipeline_runs` e `pipeline_errors` com retries limitados;
+- Manual Trigger e Schedule Trigger a cada três horas, no minuto 5.
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos nodes PostgreSQL e uma credencial do tipo `youTubeOAuth2Api` aos dois nodes HTTP Request.
 
-O workflow possui somente Manual Trigger e deve permanecer inativo durante o desenvolvimento.
+O workflow `yXv20DXsRyIyoat2` foi publicado e ativado por solicitação explícita do usuário. O agendamento usa o fuso `America/Sao_Paulo`; sua exportação versionável permanece inativa.
+
+Antes da publicação, a execução integrada final recebeu 100 resultados, processou 98 candidatos e ignorou dois itens, sem falhas. Ela persistiu 98 vídeos novos, 98 correspondências e 98 snapshots em 4,036 segundos, usando oito chamadas de API e quatro unidades estimadas no bucket de busca. A versão publicada possui 17 nodes e um gatilho agendado.
 
 ## 02 - TrendLens - Video Snapshot Tracker
 
