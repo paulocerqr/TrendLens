@@ -173,3 +173,26 @@ O arquivo [09-report.json](09-report.json) implementa:
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
 
 A execução integrada final no workflow `X3BctkFEVmBRK1e1` analisou seis vídeos e quatro categorias no contexto `youtube/BR/pt-BR`, produziu quatro Top Opportunities, dois casos Viral but Risky e nenhuma tendência emergente com amostra suficiente. O contrato final `v2` foi criado em JSON e Markdown sem falhas em 0,224 segundo; a repetição reutilizou o mesmo registro em 0,145 segundo, confirmando a idempotência. O bootstrap da migration foi removido; o workflow final possui seis nodes, permanece inativo e não publicado.
+
+## 10 - TrendLens - Observability
+
+O arquivo [10-observability.json](10-observability.json) implementa:
+
+- janela fechada e configurável de 24 horas;
+- saúde global e por cada workflow produtivo;
+- contadores de runs, itens, erros, API, quota e retries;
+- duração média e P95 por etapa;
+- vídeos coletados, novos e duplicados;
+- snapshots e classificações processadas;
+- latência média ponderada da classificação;
+- distribuição atual de vídeos por categoria;
+- vídeos distintos de alta viralidade e categorias de alta oportunidade;
+- erros recentes sem mensagem nem metadata;
+- persistência JSON idempotente por período, versão e hash;
+- Manual Trigger e Schedule Trigger a cada hora, no minuto 5.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+
+A execução integrada final no workflow `J4xto6VE3UahmSmo` analisou 69 runs, 21 eventos de erro e dois retries na janela de 24 horas. Ela contabilizou 25 classificações, 227 snapshots e 31 vídeos distintos de alta viralidade. O estado ficou `critical` por falhas do Snapshot Tracker; seis workflows ficaram saudáveis, Recommendation AI ficou degradado e o collector ficou sem execução na janela.
+
+O bootstrap temporário da migration foi removido. O workflow final possui seis nodes, permanece inativo e não publicado.

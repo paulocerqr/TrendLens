@@ -142,6 +142,20 @@ Registra status, duração, contadores, chamadas de API e estimativa de quota po
 
 Registra falhas associadas opcionalmente a uma execução. A sanitização de secrets é responsabilidade do workflow antes do insert.
 
+`retry_count` representa a quantidade de novas tentativas configuradas que antecederam um erro terminal. Eventos sem retry, como itens omitidos por uma resposta válida da API, usam zero.
+
+### `pipeline_observability_reports`
+
+Persiste snapshots JSON de saúde operacional. Cada linha registra a janela fechada, instante de geração, versão do contrato, estado geral, quantidade de workflows, runs, eventos de erro e retries, além do hash determinístico da fonte.
+
+O índice único em período, versão e hash permite reutilizar o mesmo snapshot quando as fontes não mudaram. Alterações tardias nos dados operacionais geram uma nova linha, preservando a auditoria anterior.
+
+### `build_pipeline_observability`
+
+Função SQL estável que consolida `pipeline_runs`, `pipeline_errors` e indicadores atuais das tabelas analíticas. O JSON inclui resumo global, saúde por workflow, vídeos coletados, snapshots, classificações, latência média, erros, retries, distribuição por categoria, vídeos de alta viralidade e categorias de alta oportunidade.
+
+A função considera somente a métrica mais recente de cada vídeo para evitar contagem duplicada no indicador de alta viralidade. Eventos recentes não incluem mensagem nem metadata do erro.
+
 ## Regras de exclusão
 
 Entidades dependentes de um vídeo usam `ON DELETE CASCADE`. O sistema não implementará exclusão automática de vídeos durante o MVP. Categorias referenciadas por queries usam `ON DELETE RESTRICT`, preservando a configuração operacional.

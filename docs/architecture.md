@@ -121,6 +121,23 @@ O Recommendation AI chama `select_recommendation_candidates` e envia ao modelo s
 
 O Report Engine chama `build_trendlens_report` para transformar o bucket agregado mais recente em JSON e Markdown sem uma nova etapa de IA. A função escolhe uma variante regional compatível com o idioma configurado, inclui somente recomendações do prompt atual e separa Top Opportunities, Viral but Risky e tendências emergentes. O payload e a apresentação são persistidos em `reports` com versões e hash da fonte.
 
+Todos os workflows produtivos registram seu ciclo de vida em `pipeline_runs` e falhas terminais sanitizadas em `pipeline_errors`. O workflow `10 - TrendLens - Observability` consolida esses registros em uma janela fechada de 24 horas, calcula saúde, contadores, retries e duração por etapa e persiste snapshots JSON em `pipeline_observability_reports`.
+
+```text
+01 .. 09 workflows
+        |
+        +-- pipeline_runs
+        +-- pipeline_errors
+                  |
+                  v
+10 - Observability
+        |
+        v
+pipeline_observability_reports
+```
+
+A janela termina no início da hora corrente. Isso impede que a própria execução de observabilidade entre no período analisado e fornece limites temporais estáveis para repetição e comparação. O snapshot mantém somente tipo, node, identificador externo e retry count dos erros recentes; mensagem e metadata não são copiadas para o JSON consolidado.
+
 ## Persistência e inicialização
 
 Os scripts em `database/` são montados em `/docker-entrypoint-initdb.d`. A imagem oficial do PostgreSQL executa esses arquivos somente ao inicializar um volume vazio.

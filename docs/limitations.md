@@ -26,6 +26,12 @@
 - O relatório usa somente o bucket agregado mais recente e recomendações do prompt atual. Categorias ainda não processadas pelo Recommendation AI aparecem com scores e evidências, mas sem sugestão textual.
 - Uma fonte com o mesmo hash reutiliza o relatório persistido e conserva seu instante de geração original. Mudanças nos dados ou nas versões criam uma nova linha, sem substituir o histórico.
 - O Markdown e o JSON ficam no PostgreSQL e na saída da execução do n8n. A Fase 10 não publica arquivo, envia mensagem nem expõe endpoint HTTP.
+- A observabilidade usa uma janela fechada no início da hora. Eventos da hora corrente aparecem somente no snapshot seguinte.
+- `retry_count` contabiliza retries associados a erros terminais. O n8n não expõe ao workflow retries internos que terminaram com sucesso, portanto eles não podem ser incluídos.
+- O estado `unknown` significa ausência de execução dentro da janela, não falha. Isso é esperado para workflows inativos ou com frequência maior que a janela.
+- Métricas operacionais podem ser revisadas por atualizações tardias das tabelas analíticas. Nesse caso, uma nova fonte produz outro snapshot para a mesma janela sem sobrescrever o anterior.
+- A saúde `critical` indica falhas observadas ou execução travada; não determina automaticamente a causa nem corrige o workflow afetado.
+- A Fase 11 persiste JSON no PostgreSQL e o devolve na execução do n8n. Não há dashboard, endpoint público nem canal de notificação.
 
 ## Dados e metodologia
 

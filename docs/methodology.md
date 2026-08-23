@@ -176,3 +176,26 @@ O hash exclui apenas o instante de geração e inclui contexto, período, versõ
 A execução final usou o contexto `youtube/BR/pt-BR`, analisou seis vídeos distribuídos em quatro categorias e gerou quatro Top Opportunities e dois casos Viral but Risky. Nenhuma tendência emergente possuía amostra suficiente, condição apresentada explicitamente nos dois formatos. Duas categorias tinham recomendações `v2`; as demais mantiveram somente os scores e as evidências do PostgreSQL.
 
 O contrato final foi versionado como `v2`. O relatório foi persistido em JSON e Markdown sem falhas em 0,224 segundo; uma execução imediata do fluxo definitivo encontrou o mesmo hash, reutilizou o mesmo registro em 0,145 segundo, com um item ignorado e zero falhas, confirmando a idempotência.
+
+## Observabilidade do pipeline
+
+A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia os nove workflows produtivos em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente.
+
+Cada workflow recebe um estado derivado:
+
+- `critical`: existe execução falha no período ou execução `running` acima do limite configurado;
+- `degraded`: existe execução parcial ou evento de erro sem condição crítica;
+- `healthy`: houve execução no período sem falha ou erro;
+- `unknown`: não houve execução dentro da janela.
+
+O estado geral é `critical` quando qualquer etapa é crítica, `degraded` quando não há etapa crítica mas existe etapa degradada e `healthy` nos demais casos. Workflows `unknown` permanecem contabilizados sem tornar o estado geral crítico, pois nem todas as etapas possuem a mesma frequência ou estão publicadas.
+
+Os indicadores operacionais distinguem vídeos coletados, novos e duplicados, snapshots, classificações, erros de classificação, erros de API, itens com erro e retries. A latência média de classificação é ponderada pela quantidade processada mais a quantidade com erro. A distribuição por categoria usa o inventário classificado; alta viralidade considera somente a métrica mais recente de cada vídeo na versão corrente; oportunidades usam o bucket agregado mais recente e as versões configuradas.
+
+Retries representam as novas tentativas registradas quando um erro terminal persiste após `maxTries = 3`. Tentativas internas que terminam com sucesso não são expostas pelo n8n e, portanto, não entram no contador. A lista de erros recentes omite deliberadamente `error_message` e `metadata`.
+
+## Primeira execução da observabilidade
+
+A execução final do workflow analisou 69 runs na janela fechada, com 48 sucessos, três execuções parciais, 18 falhas, 21 eventos de erro e dois retries registrados. Foram observadas 25 classificações, 227 snapshots e 31 vídeos distintos cuja métrica mais recente atingia o limite de alta viralidade. A saúde geral ficou `critical` porque o Snapshot Tracker acumulou falhas de itens omitidos pela API; Recommendation AI ficou `degraded` e seis workflows ficaram saudáveis.
+
+O snapshot foi persistido sem falha, o bootstrap da migration foi removido e o workflow final executou em 0,102 segundo. Ele possui seis nodes, permanece inativo e não publicado.
