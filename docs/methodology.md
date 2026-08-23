@@ -89,7 +89,9 @@ O Snapshot Tracker usa o instante de publicação e o snapshot mais recente para
 
 Os limites, intervalos e o máximo de vídeos por execução ficam em `settings`. A função `select_snapshot_candidates` aplica a mesma regra de forma centralizada e ordena primeiro as observações há mais tempo sem atualização.
 
-Cada chamada `videos.list` contém no máximo 50 IDs e solicita somente estatísticas. Um retorno válido cria um novo snapshot no instante inicial do `pipeline_run`; o registro anterior nunca é atualizado. Likes e comentários ausentes permanecem `NULL`. Vídeos omitidos pela API ou sem `viewCount` são registrados como falhas do lote, sem impedir o processamento dos demais IDs.
+Cada chamada `videos.list` contém no máximo 50 IDs e solicita somente estatísticas. Um retorno válido cria um novo snapshot no instante inicial do `pipeline_run`; o registro anterior nunca é atualizado. Likes e comentários ausentes permanecem `NULL`.
+
+Vídeos omitidos pela API ou sem `viewCount` recebem estado próprio em `video_snapshot_tracking_state`. O backoff começa em seis horas, dobra a cada omissão consecutiva e é limitado a sete dias; um retorno válido zera o estado. O erro registra o `external_id`, o motivo, o contador e `retry_after`, sem impedir o processamento dos demais IDs.
 
 ## Primeira execução do Snapshot Tracker
 
@@ -99,6 +101,8 @@ A validação integrada selecionou 149 vídeos vencidos, consultou três lotes e
 
 O classificador usa apenas metadados públicos já persistidos: título, descrição truncada, canal, publicação, duração, idioma, região, confiança de Short e categorias de proveniência. Título e descrição são tratados como dados não confiáveis, e o prompt instrui o modelo a ignorar comandos contidos nesses campos.
 
+Cada execução horária seleciona até 30 candidatos. Esse limite acompanha a vazão observada do Collector sem prolongar o lote até o próximo gatilho; o workflow possui timeout de 55 minutos como barreira operacional contra sobreposição.
+
 A resposta deve obedecer a um JSON Schema fechado. Campos livres usam `snake_case`; formato, hook, origem e categoria usam vocabulários controlados; scores e confiança ficam entre 0 e 1. Uma saída inválida passa por uma tentativa automática de correção com o mesmo provedor. Se ainda falhar, o erro é sanitizado, contabilizado e o próximo vídeo é processado.
 
 As categorias derivadas da coleta são apenas pistas e não determinam a resposta. O classificador não afirma violação de copyright nem elegibilidade de monetização: `copyright_risk` e `reused_content_risk` representam somente estimativas baseadas nos metadados disponíveis. `classification_model` e `prompt_version` tornam cada resultado auditável.
@@ -106,6 +110,8 @@ As categorias derivadas da coleta são apenas pistas e não determinam a respost
 ## Primeira execução do AI Content Classifier
 
 A revisão final selecionou cinco candidatos, criou quatro classificações e ignorou uma linha já inserida por uma execução concorrente. O run terminou com zero falhas, cinco chamadas estimadas ao modelo e duração de 134,315 segundos. A execução concorrente também finalizou com sucesso, confirmando que o conflito por vídeo é tratado de forma idempotente.
+
+A validação de capacidade posterior classificou 30 de 30 candidatos em 218,674 segundos, sem falhas ou conflitos. A média de 7,289 segundos por vídeo confirmou folga operacional diante do ciclo horário.
 
 ## Métricas e Virality Score
 

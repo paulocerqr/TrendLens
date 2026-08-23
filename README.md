@@ -121,6 +121,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/014_collection_reliability.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -221,9 +225,9 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json). O workflow do deployment original possui ID `yXv20DXsRyIyoat2` e está publicado e ativo, com coleta a cada três horas no minuto 5 em `America/Sao_Paulo`; a exportação versionável permanece inativa.
 
-O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow validado no deployment original possui ID `LTjMbH3UGW994lCA` e permanece inativo.
+O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow do deployment original possui ID `LTjMbH3UGW994lCA`, está publicado e ativo e usa backoff auditável para vídeos omitidos por `videos.list`.
 
-O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow no deployment original possui ID `86iKeeCFXiiX3fki`, permanece inativo e não foi publicado.
+O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, está publicado e ativo, processa até 30 vídeos por hora e possui timeout de 55 minutos.
 
 O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `zf3Wwl1aUINxrGEy` e foi publicado e ativado após validação explícita do usuário.
 
@@ -257,6 +261,8 @@ A seleção usa configurações do PostgreSQL:
 - vídeos com mais de 7 dias: fora do acompanhamento ativo;
 - no máximo 200 vídeos por execução, respeitando o orçamento de quota configurado.
 
+Quando `videos.list` omite um ID ou não retorna `viewCount`, o estado do vídeo recebe backoff exponencial de 6 horas, 12 horas, 24 horas e assim por diante, limitado a 7 dias. Um retorno válido zera o contador. O evento em `pipeline_errors` preserva o `external_id`, a quantidade de falhas consecutivas e o próximo instante de tentativa.
+
 Esses valores são defaults operacionais e podem ser alterados em `settings`. O Schedule Trigger verifica a fila a cada 15 minutos, mas a decisão de atualizar cada vídeo é tomada pela política armazenada no banco. Como o workflow é exportado inativo, o agendamento não executa até ativação explícita.
 
 ## Validação do Snapshot Tracker
@@ -269,11 +275,13 @@ A primeira execução manual integrada aplicou a migration, selecionou 149 víde
 - 3 chamadas `videos.list` e 3 unidades estimadas de quota;
 - duração total de 1,685 segundo.
 
-Uma segunda execução imediata selecionou zero vídeos, não chamou a API e finalizou com sucesso. Isso confirmou que os snapshots recém-inseridos passaram a controlar corretamente o próximo instante elegível. O node temporário de migration foi removido após a validação; a versão final possui nove nodes, está inativa e não foi publicada.
+Uma segunda execução imediata selecionou zero vídeos, não chamou a API e finalizou com sucesso. Isso confirmou que os snapshots recém-inseridos passaram a controlar corretamente o próximo instante elegível.
+
+Após a migration `014`, uma validação real processou sete candidatos, inseriu seis snapshots e colocou o ID omitido `Pjbm2QB6ktk` em backoff por seis horas. A execução seguinte selecionou zero candidatos e não chamou a API, comprovando que a omissão deixou de reaparecer a cada 15 minutos. A versão final possui nove nodes e está publicada e ativa.
 
 ## Classificação estruturada por IA
 
-O classificador seleciona no máximo cinco vídeos ainda não processados por execução, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens.
+O classificador seleciona no máximo 30 vídeos ainda não processados por execução horária, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
 
 Cada classificação persiste categoria, tópico, tipo de conteúdo, formato, hook, origem, estilo de apresentação, confiança e três scores entre 0 e 1. Originalidade, risco autoral e risco de conteúdo reutilizado são estimativas heurísticas, não decisões jurídicas, afirmações de violação ou garantias de monetização. Modelo e versão do prompt são gravados em cada linha para auditoria.
 
@@ -288,7 +296,9 @@ A execução manual da revisão final selecionou cinco candidatos e terminou com
 - 5 chamadas estimadas ao modelo;
 - duração total de 134,315 segundos.
 
-A validação também confirmou a idempotência entre execuções concorrentes: a chave primária de `video_classifications` impediu duplicação e o conflito foi contabilizado como item ignorado. O bootstrap temporário da migration foi removido depois do teste; a versão final possui 13 nodes, está inativa e não foi publicada.
+A validação também confirmou a idempotência entre execuções concorrentes: a chave primária de `video_classifications` impediu duplicação e o conflito foi contabilizado como item ignorado. O bootstrap temporário da migration foi removido depois do teste; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
+
+Após a migration `014`, a validação de capacidade selecionou e persistiu 30 classificações, sem falhas ou conflitos, em 218,674 segundos. A média observada de 7,289 segundos por vídeo mantém ampla margem diante do intervalo horário e do timeout de 55 minutos. A nova versão está publicada e ativa.
 
 ## Validação do Metrics Engine
 

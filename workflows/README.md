@@ -43,14 +43,15 @@ O arquivo [02-video-snapshot-tracker.json](02-video-snapshot-tracker.json) imple
 - limite de vídeos por execução e lotes de até 50 IDs para `videos.list`;
 - novos registros imutáveis em `video_snapshots`;
 - preservação de `NULL` para likes ou comentários ausentes;
+- backoff exponencial e auditável para vídeos omitidos ou sem `viewCount`;
 - retries limitados, erros sanitizados e contadores em `pipeline_runs`;
 - Manual Trigger para validação e Schedule Trigger de verificação a cada 15 minutos.
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e uma credencial do tipo `youTubeOAuth2Api` ao node HTTP Request.
 
-O workflow deve permanecer inativo durante o desenvolvimento. Enquanto estiver inativo, o Schedule Trigger não executará.
+O workflow `LTjMbH3UGW994lCA` está publicado e ativo. A exportação versionável permanece inativa.
 
-A validação integrada no workflow `LTjMbH3UGW994lCA` processou 149 vídeos em três lotes, inseriu 149 snapshots e terminou sem falhas. Uma segunda execução imediata não encontrou vídeos vencidos e não consumiu quota da API. Depois do teste, o bootstrap temporário da migration foi removido; a versão final possui nove nodes e permanece inativa e não publicada.
+A validação da migration `014` processou sete candidatos, inseriu seis snapshots e registrou o vídeo omitido `Pjbm2QB6ktk` com backoff de seis horas. Uma segunda execução imediata selecionou zero candidatos e não consumiu quota, confirmando que o ID não voltou à fila. O workflow final possui nove nodes e está publicado e ativo.
 
 ## 03 - TrendLens - AI Content Classifier
 
@@ -63,13 +64,16 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
 - estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
 - retries limitados, erros sanitizados e contadores em `pipeline_runs`;
-- Manual Trigger e Schedule Trigger de execução a cada hora.
+- lote configurável de até 30 vídeos por execução;
+- Manual Trigger e Schedule Trigger de execução a cada hora, com timeout de 55 minutos.
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
 
-O workflow deve permanecer inativo durante o desenvolvimento. Enquanto estiver inativo, o Schedule Trigger não executará.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo. A exportação versionável permanece inativa.
 
-A execução integrada final no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão final possui 13 nodes, permanece inativa e não publicada.
+A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
+
+Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. O workflow final possui 13 nodes e está publicado e ativo.
 
 ## 04 - TrendLens - Metrics Engine & Virality Score
 

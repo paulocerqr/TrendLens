@@ -68,9 +68,17 @@ Armazena metadados públicos normalizados. A combinação `platform + external_i
 
 Armazena observações históricas imutáveis. Likes e comentários aceitam `NULL` quando a métrica não estiver disponível; isso não equivale a zero.
 
+### `video_snapshot_tracking_state`
+
+Mantém somente o estado operacional mutável de cada vídeo: falhas consecutivas, último motivo, último sucesso e `retry_after`. O histórico observado continua imutável em `video_snapshots`, enquanto um sucesso posterior limpa o backoff.
+
 ### `select_snapshot_candidates`
 
-Função SQL que seleciona vídeos do YouTube ainda dentro da janela ativa e cujo snapshot mais recente venceu o intervalo da respectiva faixa de idade. Ela retorna também a faixa e o intervalo aplicado, permitindo testar a política independentemente do n8n.
+Função SQL que seleciona vídeos do YouTube ainda dentro da janela ativa, cujo snapshot mais recente venceu o intervalo da respectiva faixa de idade e cujo backoff já expirou. Ela retorna também a faixa e o intervalo aplicado, permitindo testar a política independentemente do n8n.
+
+### `persist_snapshot_batch`
+
+Função transacional que compara os IDs pedidos e retornados, persiste snapshots válidos, atualiza ou limpa o backoff, registra um erro auditável por vídeo e atualiza os contadores do `pipeline_run`.
 
 ### `video_collection_matches`
 
