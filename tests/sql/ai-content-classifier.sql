@@ -23,9 +23,9 @@ BEGIN
         SELECT 1
           FROM settings
          WHERE key = 'CLASSIFIER_MAX_VIDEOS_PER_RUN'
-           AND (value #>> '{}')::integer BETWEEN 1 AND 1000
+           AND (value #>> '{}')::integer = 30
     ) THEN
-        RAISE EXCEPTION 'CLASSIFIER_MAX_VIDEOS_PER_RUN is missing or invalid';
+        RAISE EXCEPTION 'CLASSIFIER_MAX_VIDEOS_PER_RUN does not match the operational capacity of 30';
     END IF;
 
     IF NOT EXISTS (

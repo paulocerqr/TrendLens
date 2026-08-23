@@ -16,6 +16,9 @@ DECLARE
     intermediate_due_id BIGINT;
     older_due_id BIGINT;
     expired_id BIGINT;
+    backoff_video_id BIGINT;
+    failed_run_id BIGINT;
+    success_run_id BIGINT;
     selected_count INTEGER;
     snapshot_count INTEGER;
 BEGIN
@@ -73,8 +76,18 @@ BEGIN
         RAISE EXCEPTION 'SNAPSHOT_MAX_VIDEOS_PER_RUN is missing or invalid';
     END IF;
 
+    IF snapshot_backoff_minutes(1) <> 360
+       OR snapshot_backoff_minutes(2) <> 720
+       OR snapshot_backoff_minutes(20) <> 10080 THEN
+        RAISE EXCEPTION 'Snapshot backoff policy is not exponential or capped as expected';
+    END IF;
+
     IF to_regprocedure('select_snapshot_candidates(timestamp with time zone,integer)') IS NULL THEN
         RAISE EXCEPTION 'select_snapshot_candidates function is missing';
+    END IF;
+
+    IF to_regprocedure('persist_snapshot_batch(bigint,integer,jsonb,jsonb,integer)') IS NULL THEN
+        RAISE EXCEPTION 'persist_snapshot_batch function is missing';
     END IF;
 
     INSERT INTO videos (
@@ -175,13 +188,27 @@ BEGIN
     )
     RETURNING id INTO expired_id;
 
+    INSERT INTO videos (
+        platform, external_id, channel_id, title, url, published_at,
+        duration_seconds, language, region, short_confidence
+    )
+    VALUES (
+        'youtube', '__snapshot_tracker_backoff', '__snapshot_tracker_channel',
+        'Snapshot tracker backoff fixture',
+        'https://www.youtube.com/watch?v=__snapshot_tracker_backoff',
+        reference_time - make_interval(hours => greatest(recent_age_hours / 2, 1)),
+        30, 'pt', 'BR', 'medium'
+    )
+    RETURNING id INTO backoff_video_id;
+
     INSERT INTO video_snapshots (video_id, collected_at, views, likes, comments)
     VALUES
         (recent_due_id, reference_time - make_interval(mins => recent_interval_minutes + 1), 100, 10, 2),
         (recent_wait_id, reference_time - make_interval(mins => greatest(recent_interval_minutes - 1, 0)), 100, NULL, NULL),
         (intermediate_due_id, reference_time - make_interval(mins => intermediate_interval_minutes + 1), 200, 20, 4),
         (older_due_id, reference_time - make_interval(mins => older_interval_minutes + 1), 300, 30, 6),
-        (expired_id, reference_time - make_interval(days => active_days + 1), 400, 40, 8);
+        (expired_id, reference_time - make_interval(days => active_days + 1), 400, 40, 8),
+        (backoff_video_id, reference_time - make_interval(mins => recent_interval_minutes + 1), 500, 50, 10);
 
     SELECT count(*)
       INTO selected_count
@@ -254,6 +281,112 @@ BEGIN
          WHERE video_id = recent_due_id
     ) THEN
         RAISE EXCEPTION 'A video with a snapshot at the reference time remained due';
+    END IF;
+
+    INSERT INTO video_snapshot_tracking_state (
+        video_id, consecutive_failures, last_failure_at, retry_after,
+        last_error_type, last_error_reason
+    )
+    VALUES (
+        backoff_video_id, 1, reference_time - interval '1 minute',
+        reference_time + interval '1 hour', 'youtube_video_not_returned',
+        'Fixture omission'
+    );
+
+    IF EXISTS (
+        SELECT 1
+          FROM select_snapshot_candidates(reference_time, NULL)
+         WHERE video_id = backoff_video_id
+    ) THEN
+        RAISE EXCEPTION 'A video inside its retry backoff was selected';
+    END IF;
+
+    UPDATE video_snapshot_tracking_state
+       SET retry_after = reference_time - interval '1 minute'
+     WHERE video_id = backoff_video_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM select_snapshot_candidates(reference_time, NULL)
+         WHERE video_id = backoff_video_id
+    ) THEN
+        RAISE EXCEPTION 'A video whose retry backoff expired was not selected';
+    END IF;
+
+    INSERT INTO pipeline_runs (workflow, status, started_at)
+    VALUES ('02 - TrendLens - Video Snapshot Tracker', 'running', reference_time)
+    RETURNING id INTO failed_run_id;
+
+    PERFORM *
+      FROM persist_snapshot_batch(
+          failed_run_id,
+          1,
+          jsonb_build_array(jsonb_build_object(
+              'video_id', backoff_video_id,
+              'external_id', '__snapshot_tracker_backoff'
+          )),
+          '[]'::JSONB,
+          1
+      );
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM video_snapshot_tracking_state
+         WHERE video_id = backoff_video_id
+           AND consecutive_failures = 2
+           AND retry_after = reference_time + make_interval(mins => snapshot_backoff_minutes(2))
+    ) THEN
+        RAISE EXCEPTION 'A repeated omission did not advance the video backoff';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pipeline_errors
+         WHERE pipeline_run_id = failed_run_id
+           AND external_id = '__snapshot_tracker_backoff'
+           AND error_type = 'youtube_video_not_returned'
+           AND (metadata ->> 'consecutive_failures')::INTEGER = 2
+    ) THEN
+        RAISE EXCEPTION 'The omitted external ID or retry state was not logged';
+    END IF;
+
+    INSERT INTO pipeline_runs (workflow, status, started_at)
+    VALUES (
+        '02 - TrendLens - Video Snapshot Tracker',
+        'running',
+        reference_time + make_interval(mins => snapshot_backoff_minutes(2) + 1)
+    )
+    RETURNING id INTO success_run_id;
+
+    PERFORM *
+      FROM persist_snapshot_batch(
+          success_run_id,
+          1,
+          jsonb_build_array(jsonb_build_object(
+              'video_id', backoff_video_id,
+              'external_id', '__snapshot_tracker_backoff'
+          )),
+          jsonb_build_array(jsonb_build_object(
+              'id', '__snapshot_tracker_backoff',
+              'statistics', jsonb_build_object(
+                  'viewCount', '550',
+                  'likeCount', '55',
+                  'commentCount', '11'
+              )
+          )),
+          1
+      );
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM video_snapshot_tracking_state
+         WHERE video_id = backoff_video_id
+           AND consecutive_failures = 0
+           AND retry_after IS NULL
+           AND last_error_type IS NULL
+           AND last_success_at = reference_time + make_interval(mins => snapshot_backoff_minutes(2) + 1)
+    ) THEN
+        RAISE EXCEPTION 'A successful response did not reset the video backoff';
     END IF;
 END;
 $$;

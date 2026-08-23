@@ -35,6 +35,10 @@ CREATE INDEX IF NOT EXISTS video_snapshots_video_collected_idx
 CREATE INDEX IF NOT EXISTS video_snapshots_collected_at_idx
     ON video_snapshots (collected_at DESC);
 
+CREATE INDEX IF NOT EXISTS video_snapshot_tracking_retry_idx
+    ON video_snapshot_tracking_state (retry_after, video_id)
+    WHERE retry_after IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS video_classifications_dimensions_idx
     ON video_classifications (
         category_id,
