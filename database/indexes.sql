@@ -151,6 +151,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS pipeline_observability_source_idx
 CREATE INDEX IF NOT EXISTS pipeline_observability_generated_idx
     ON pipeline_observability_reports (generated_at DESC, overall_status);
 
+CREATE INDEX IF NOT EXISTS classification_validation_reviewed_idx
+    ON classification_validation_reviews (reviewed_at DESC, prompt_version);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pipeline_validation_source_idx
+    ON pipeline_validation_reports (
+        period_start,
+        period_end,
+        validation_version,
+        source_hash
+    );
+
+CREATE INDEX IF NOT EXISTS pipeline_validation_generated_idx
+    ON pipeline_validation_reports (generated_at DESC, overall_status);
+
 CREATE INDEX IF NOT EXISTS pipeline_runs_workflow_started_idx
     ON pipeline_runs (workflow, started_at DESC);
 
