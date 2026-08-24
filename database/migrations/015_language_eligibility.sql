@@ -27,8 +27,9 @@ ALTER TABLE videos
 
 UPDATE videos
    SET target_language = COALESCE(
-           NULLIF(language, ''),
-           NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'LANGUAGE_GATE_TARGET_LANGUAGE'), ''),
+           NULLIF(lower(replace(btrim(
+               (SELECT value #>> '{}' FROM settings WHERE key = 'LANGUAGE_GATE_TARGET_LANGUAGE')
+           ), '_', '-')), ''),
            'pt'
        ),
        api_language = NULL,
@@ -150,7 +151,11 @@ WITH config AS (
     SELECT GREATEST(
         COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'LANGUAGE_GATE_MAX_ATTEMPTS'), 3),
         1
-    ) AS max_attempts
+    ) AS max_attempts,
+    COALESCE(
+        normalize_language_code((SELECT value #>> '{}' FROM settings WHERE key = 'LANGUAGE_GATE_TARGET_LANGUAGE')),
+        'pt'
+    ) AS target_language
 )
 SELECT
     video.id,
@@ -161,7 +166,7 @@ SELECT
     video.published_at,
     video.duration_seconds,
     video.api_language,
-    video.target_language,
+    config.target_language,
     video.region,
     video.short_confidence,
     video.language_detection_attempts,
@@ -212,11 +217,15 @@ WITH config AS (
         GREATEST(COALESCE(
             (SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'LANGUAGE_GATE_RETRY_HOURS'),
             24
-        ), 1) AS retry_hours
+        ), 1) AS retry_hours,
+        COALESCE(
+            normalize_language_code((SELECT value #>> '{}' FROM settings WHERE key = 'LANGUAGE_GATE_TARGET_LANGUAGE')),
+            'pt'
+        ) AS target_language
 ), evaluated AS (
     SELECT
         video.id,
-        video.target_language,
+        config.target_language,
         normalize_language_code(p_detected_language) AS detected_language,
         GREATEST(0::NUMERIC, LEAST(1::NUMERIC, COALESCE(p_confidence, 0))) AS confidence,
         CASE
@@ -240,6 +249,7 @@ WITH config AS (
 ), updated AS (
     UPDATE videos video
        SET detected_language = decided.detected_language,
+           target_language = decided.target_language,
            language = decided.detected_language,
            language_confidence = decided.confidence,
            language_detection_source = decided.detection_source,

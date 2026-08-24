@@ -38,7 +38,7 @@ BEGIN
     ) VALUES (
         'youtube', '__language_en', '__language_channel', 'Quick tutorial in English',
         'https://example.test/__language_en', '2100-02-02 00:00:00+00',
-        40, 'pt', 'uncertain', 'medium'
+        40, 'en', 'uncertain', 'medium'
     ) RETURNING id INTO foreign_video;
 
     INSERT INTO videos (
@@ -63,8 +63,9 @@ BEGIN
 
     SELECT * INTO result_row
       FROM persist_language_detection(foreign_video, 'en-US', 0.99, 'llm_metadata', '2100-02-04');
-    IF result_row.language_eligibility <> 'rejected' THEN
-        RAISE EXCEPTION 'Foreign detection was not rejected: %', row_to_json(result_row);
+    IF result_row.language_eligibility <> 'rejected'
+       OR result_row.target_language <> 'pt' THEN
+        RAISE EXCEPTION 'Foreign detection was not rejected against the global target: %', row_to_json(result_row);
     END IF;
 
     SELECT * INTO result_row

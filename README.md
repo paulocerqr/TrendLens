@@ -129,6 +129,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/016_global_language_target.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -237,7 +241,7 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json). O workflow do deployment original possui ID `yXv20DXsRyIyoat2` e está publicado e ativo, com coleta a cada três horas no minuto 5 em `America/Sao_Paulo`; a exportação versionável permanece inativa.
 
-O Content Language Gate exportado está em [workflows/01b-content-language-gate.json](workflows/01b-content-language-gate.json). Ele usa metadados públicos para avaliar somente vídeos sem idioma confiável, aplica confiança mínima configurável e mantém resultados `uncertain` ou `rejected` fora do classificador. O workflow do deployment original possui ID `1cjqpTWdMiaNzNgU`, usa as credenciais `TrendLens PostgreSQL` e NVIDIA e permanece inativo e não publicado até a migration `015` ser aplicada e a execução manual ser validada.
+O Content Language Gate exportado está em [workflows/01b-content-language-gate.json](workflows/01b-content-language-gate.json). Ele usa metadados públicos para avaliar somente vídeos sem idioma confiável, compara o idioma detectado com o alvo global `pt`, aplica confiança mínima configurável e mantém resultados `uncertain` ou `rejected` fora do classificador. A execução manual 481 processou 30 vídeos sem falhas; a auditoria identificou e motivou a migration corretiva `016`, que deve ser aplicada antes de uma nova execução. O workflow do deployment original possui ID `1cjqpTWdMiaNzNgU`, usa as credenciais `TrendLens PostgreSQL` e NVIDIA e permanece inativo e não publicado.
 
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow do deployment original possui ID `LTjMbH3UGW994lCA`, está publicado e ativo e usa backoff auditável para vídeos omitidos por `videos.list`.
 

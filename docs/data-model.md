@@ -92,7 +92,7 @@ Seleciona vídeos do YouTube com elegibilidade `uncertain`, backoff vencido e te
 
 ### `persist_language_detection`
 
-Normaliza o código de idioma, aplica a confiança mínima e decide `eligible`, `rejected` ou `uncertain` pela correspondência do idioma-base com `target_language`. O resultado registra fonte, instante, quantidade de tentativas e próximo retry de forma atômica.
+Normaliza o código de idioma, carrega o idioma-alvo global de `LANGUAGE_GATE_TARGET_LANGUAGE`, aplica a confiança mínima e decide `eligible`, `rejected` ou `uncertain` pela correspondência entre os idiomas-base. A função também realinha `videos.target_language` ao valor global, impedindo que o idioma declarado pelo vídeo se torne acidentalmente o critério de elegibilidade. O resultado registra fonte, instante, quantidade de tentativas e próximo retry de forma atômica.
 
 ### `set_manual_language_eligibility`
 

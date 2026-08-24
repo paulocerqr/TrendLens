@@ -37,7 +37,7 @@ Referência: [YouTube Data API — search.list](https://developers.google.com/yo
 
 O collector não converte idioma ausente em `pt`. Ele mantém `api_language` como sinal observado, `target_language` como configuração operacional e `detected_language` como resultado da avaliação. `regionCode=BR` define o mercado da busca e não comprova origem geográfica, nacionalidade ou variante `pt-BR`.
 
-Quando a API declara `pt` ou uma variante `pt-*`, o vídeo fica `eligible`; um idioma-base diferente fica `rejected`. Quando a API não declara idioma, o estado inicial é `uncertain` e o workflow 01B avalia apenas título e descrição com JSON estruturado. A confiança mínima inicial é 0,80. Resultados inconclusivos ou falhas entram em backoff de 24 horas, até três tentativas automáticas; uma revisão manual pode registrar uma decisão explícita sem apagar os metadados brutos.
+O idioma-alvo global vem de `LANGUAGE_GATE_TARGET_LANGUAGE`, inicialmente `pt`; ele nunca é derivado do idioma declarado pelo próprio vídeo. Quando a API declara `pt` ou uma variante `pt-*`, o vídeo fica `eligible`; um idioma-base diferente fica `rejected`. Quando a API não declara idioma, o estado inicial é `uncertain` e o workflow 01B avalia apenas título e descrição com JSON estruturado. A confiança mínima inicial é 0,80. Resultados inconclusivos ou falhas entram em backoff de 24 horas, até três tentativas automáticas; uma revisão manual pode registrar uma decisão explícita sem apagar os metadados brutos.
 
 O classificador, o Trend Engine, a observabilidade analítica e a validação da Fase 12 usam somente vídeos `eligible`. Linhas derivadas históricas não são apagadas; as novas agregações usam versões `v2-language-eligible`, mantendo rastreabilidade do período anterior.
 

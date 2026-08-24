@@ -50,7 +50,7 @@ O arquivo [01b-content-language-gate.json](01b-content-language-gate.json) imple
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
 
-O workflow `1cjqpTWdMiaNzNgU` foi criado e validado com 13 nodes. Ele permanece inativo e não publicado; a primeira execução real depende da aplicação da migration `015` no PostgreSQL do servidor.
+O workflow `1cjqpTWdMiaNzNgU` foi criado e validado com 13 nodes. A execução manual 481 avaliou 30 vídeos em 324,192 segundos, sem falhas: 19 foram inicialmente marcados como elegíveis, dois como rejeitados e nove como incertos. A revisão dos resultados detectou que linhas migradas podiam carregar o idioma do próprio vídeo como alvo; a migration `016_global_language_target.sql` corrige os dados existentes e torna `LANGUAGE_GATE_TARGET_LANGUAGE=pt` a única referência automática. O workflow permanece inativo e não publicado até a aplicação da correção e uma nova validação manual.
 
 ## 02 - TrendLens - Video Snapshot Tracker
 
