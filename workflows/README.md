@@ -24,6 +24,7 @@ O arquivo [01-youtube-data-collector.json](01-youtube-data-collector.json) imple
 - buscas do YouTube com janela, idioma, região e limite vindos do PostgreSQL;
 - consulta de detalhes em lote para reduzir chamadas de API;
 - conversão de duração e classificação heurística de candidatos a Shorts;
+- persistência separada do idioma declarado pela API e do idioma-alvo da coleta, sem preencher ausência como `pt`;
 - upsert de vídeos, primeiro snapshot e proveniência da amostra;
 - logs em `pipeline_runs` e `pipeline_errors` com retries limitados;
 - Manual Trigger e Schedule Trigger a cada três horas, no minuto 5.
@@ -33,6 +34,23 @@ A exportação não contém associações de credenciais. Depois de importar, at
 O workflow `yXv20DXsRyIyoat2` foi publicado e ativado por solicitação explícita do usuário. O agendamento usa o fuso `America/Sao_Paulo`; sua exportação versionável permanece inativa.
 
 Antes da publicação, a execução integrada final recebeu 100 resultados, processou 98 candidatos e ignorou dois itens, sem falhas. Ela persistiu 98 vídeos novos, 98 correspondências e 98 snapshots em 4,036 segundos, usando oito chamadas de API e quatro unidades estimadas no bucket de busca. A versão publicada possui 17 nodes e um gatilho agendado.
+
+## 01B - TrendLens - Content Language Gate
+
+O arquivo [01b-content-language-gate.json](01b-content-language-gate.json) implementa:
+
+- fila PostgreSQL para vídeos com idioma `uncertain`;
+- aceitação direta de códigos `pt` e `pt-*` declarados pela API;
+- detecção conservadora por NVIDIA NIM quando o idioma da API estiver ausente;
+- JSON Schema fechado com idioma, confiança e fonte de evidência;
+- confiança mínima, limite de tentativas e backoff configuráveis;
+- estados `eligible`, `uncertain` e `rejected`, sem excluir o vídeo bruto;
+- logs em `pipeline_runs` e `pipeline_errors`, com mensagens sanitizadas;
+- Manual Trigger e Schedule Trigger horário no minuto 5.
+
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+
+O workflow `1cjqpTWdMiaNzNgU` foi criado e validado com 13 nodes. Ele permanece inativo e não publicado; a primeira execução real depende da aplicação da migration `015` no PostgreSQL do servidor.
 
 ## 02 - TrendLens - Video Snapshot Tracker
 
@@ -57,7 +75,7 @@ A validação da migration `014` processou sete candidatos, inseriu seis snapsho
 
 O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) implementa:
 
-- seleção configurável de vídeos do YouTube ainda não classificados;
+- seleção configurável de vídeos do YouTube ainda não classificados e com idioma elegível;
 - envio somente dos metadados necessários, com descrição truncada;
 - classificação com NVIDIA Nemotron e prompt versionado;
 - saída JSON validada por schema e uma tentativa automática de correção;

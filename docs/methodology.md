@@ -33,6 +33,14 @@ Cada chamada de busca deverá usar:
 
 Referência: [YouTube Data API — search.list](https://developers.google.com/youtube/v3/docs/search/list).
 
+## Elegibilidade de idioma
+
+O collector não converte idioma ausente em `pt`. Ele mantém `api_language` como sinal observado, `target_language` como configuração operacional e `detected_language` como resultado da avaliação. `regionCode=BR` define o mercado da busca e não comprova origem geográfica, nacionalidade ou variante `pt-BR`.
+
+Quando a API declara `pt` ou uma variante `pt-*`, o vídeo fica `eligible`; um idioma-base diferente fica `rejected`. Quando a API não declara idioma, o estado inicial é `uncertain` e o workflow 01B avalia apenas título e descrição com JSON estruturado. A confiança mínima inicial é 0,80. Resultados inconclusivos ou falhas entram em backoff de 24 horas, até três tentativas automáticas; uma revisão manual pode registrar uma decisão explícita sem apagar os metadados brutos.
+
+O classificador, o Trend Engine, a observabilidade analítica e a validação da Fase 12 usam somente vídeos `eligible`. Linhas derivadas históricas não são apagadas; as novas agregações usam versões `v2-language-eligible`, mantendo rastreabilidade do período anterior.
+
 ## Detalhes e candidatos a Shorts
 
 A busca fornece IDs e snippets. Detalhes de vídeo serão obtidos em lote com `videos.list`, incluindo:
@@ -99,7 +107,7 @@ A validação integrada selecionou 149 vídeos vencidos, consultou três lotes e
 
 ## Classificação estruturada por IA
 
-O classificador usa apenas metadados públicos já persistidos: título, descrição truncada, canal, publicação, duração, idioma, região, confiança de Short e categorias de proveniência. Título e descrição são tratados como dados não confiáveis, e o prompt instrui o modelo a ignorar comandos contidos nesses campos.
+O classificador usa apenas metadados públicos já persistidos e aprovados pelo gate: título, descrição truncada, canal, publicação, duração, idioma, região, confiança de Short e categorias de proveniência. Título e descrição são tratados como dados não confiáveis, e o prompt instrui o modelo a ignorar comandos contidos nesses campos.
 
 Cada execução horária seleciona até 30 candidatos. Esse limite acompanha a vazão observada do Collector sem prolongar o lote até o próximo gatilho; o workflow possui timeout de 55 minutos como barreira operacional contra sobreposição.
 
@@ -189,7 +197,7 @@ O contrato final foi versionado como `v2`. O relatório foi persistido em JSON e
 
 ## Observabilidade do pipeline
 
-A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia os nove workflows produtivos em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente.
+A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia dez workflows produtivos, incluindo o gate de idioma, em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente.
 
 Cada workflow recebe um estado derivado:
 

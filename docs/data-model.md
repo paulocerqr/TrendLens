@@ -64,6 +64,8 @@ Queries associadas a categorias. `sample_group` diferencia amostras `recent` e `
 
 Armazena metadados públicos normalizados. A combinação `platform + external_id` é única. `short_confidence` expressa uma estimativa e não uma afirmação de que o vídeo é oficialmente um Short.
 
+O idioma possui campos com responsabilidades distintas: `api_language` preserva o valor explícito da plataforma; `target_language` representa a configuração da análise; `detected_language`, `language_confidence` e `language_detection_source` registram a avaliação; `language_eligibility` controla a passagem para o pipeline analítico. Tentativas e `language_retry_after` formam uma fila operacional sem apagar vídeos rejeitados.
+
 ### `video_snapshots`
 
 Armazena observações históricas imutáveis. Likes e comentários aceitam `NULL` quando a métrica não estiver disponível; isso não equivale a zero.
@@ -84,9 +86,21 @@ Função transacional que compara os IDs pedidos e retornados, persiste snapshot
 
 Relaciona cada vídeo elegível à query e à execução que o encontrou, preservando a posição na busca. Essa proveniência permite comparar as amostras `recent` e `high_performance` sem duplicar registros em `videos`.
 
+### `select_language_detection_candidates`
+
+Seleciona vídeos do YouTube com elegibilidade `uncertain`, backoff vencido e tentativas abaixo do limite configurado. A descrição é truncada no PostgreSQL e as categorias de proveniência entram apenas como pistas.
+
+### `persist_language_detection`
+
+Normaliza o código de idioma, aplica a confiança mínima e decide `eligible`, `rejected` ou `uncertain` pela correspondência do idioma-base com `target_language`. O resultado registra fonte, instante, quantidade de tentativas e próximo retry de forma atômica.
+
+### `set_manual_language_eligibility`
+
+Permite revisão explícita de um vídeo inconclusivo. A origem passa a `manual`, a confiança fica registrada como 1 e os metadados públicos do vídeo continuam preservados.
+
 ### `select_classification_candidates`
 
-Função SQL que retorna somente vídeos do YouTube sem linha em `video_classifications`. O limite e o tamanho máximo da descrição são argumentos explícitos; as categorias das queries que encontraram o vídeo são agregadas como pistas de baixa confiança.
+Função SQL que retorna somente vídeos do YouTube com `language_eligibility` no estado `eligible` e sem linha em `video_classifications`. O limite e o tamanho máximo da descrição são argumentos explícitos; as categorias das queries que encontraram o vídeo são agregadas como pistas de baixa confiança.
 
 ## Dados derivados
 

@@ -61,6 +61,12 @@ YouTube Data API
 videos + video_snapshots + video_collection_matches
         |
         v
+01B - Content Language Gate
+        |
+        v
+language_eligibility
+        |
+        v
 03 - AI Content Classifier
         |
         v
@@ -105,9 +111,11 @@ reports (JSON + Markdown)
 
 O collector é iniciado manualmente ou por um Schedule Trigger a cada três horas, no minuto 5, em `America/Sao_Paulo`. Ele consulta configurações e queries no PostgreSQL, processa uma query por vez, obtém detalhes em lote e registra contadores por execução. Cada etapa analítica permanece separada em um workflow especializado.
 
+O Content Language Gate separa idioma declarado pela API, idioma-alvo e idioma detectado. Sinais explícitos da API recebem decisão determinística; registros sem idioma entram em uma fila com tentativas limitadas e backoff e são avaliados pelo modelo somente a partir de título e descrição. O vídeo continua preservado em `videos`, mas apenas `eligible` pode avançar ao classificador e às agregações analíticas.
+
 O Snapshot Tracker consulta a função `select_snapshot_candidates`, agrupa os vídeos vencidos em lotes de até 50 IDs, atualiza somente as estatísticas públicas via `videos.list` e chama `persist_snapshot_batch`. A função insere uma nova linha em `video_snapshots`, mantém backoff por vídeo em `video_snapshot_tracking_state` e registra omissões com `external_id`. A política de idade, intervalo e backoff fica em `settings`; o Schedule Trigger funciona apenas como verificação periódica da fila.
 
-O AI Content Classifier consulta até 30 linhas de `select_classification_candidates` por execução horária, processa um vídeo por vez e conecta o Basic LLM Chain a um modelo NVIDIA e a um parser estruturado. A saída validada é persistida em colunas tipadas de `video_classifications`; falhas do modelo, do parser ou da persistência seguem rotas próprias para `pipeline_errors` e o loop continua. Um timeout de 55 minutos impede que o lote atravesse o próximo ciclo.
+O AI Content Classifier consulta até 30 linhas linguisticamente elegíveis de `select_classification_candidates` por execução horária, processa um vídeo por vez e conecta o Basic LLM Chain a um modelo NVIDIA e a um parser estruturado. A saída validada é persistida em colunas tipadas de `video_classifications`; falhas do modelo, do parser ou da persistência seguem rotas próprias para `pipeline_errors` e o loop continua. Um timeout de 55 minutos impede que o lote atravesse o próximo ciclo.
 
 O Metrics Engine chama `refresh_video_metrics` em uma operação set-based. A função identifica o snapshot atual de cada vídeo elegível, deriva o histórico necessário, calcula baselines e percentis sobre a coorte completa e faz upsert idempotente em `video_metrics`. O n8n apenas inicia, audita e finaliza a operação; todos os números analíticos vêm do PostgreSQL.
 
@@ -124,7 +132,7 @@ O Report Engine chama `build_trendlens_report` para transformar o bucket agregad
 Todos os workflows produtivos registram seu ciclo de vida em `pipeline_runs` e falhas terminais sanitizadas em `pipeline_errors`. O workflow `10 - TrendLens - Observability` consolida esses registros em uma janela fechada de 24 horas, calcula saúde, contadores, retries e duração por etapa e persiste snapshots JSON em `pipeline_observability_reports`.
 
 ```text
-01 .. 09 workflows
+01, 01B e 02 .. 09 workflows
         |
         +-- pipeline_runs
         +-- pipeline_errors

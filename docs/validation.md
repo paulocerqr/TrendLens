@@ -6,6 +6,8 @@ A Fase 12 verifica a qualidade dos dados e das heurísticas antes de qualquer ca
 
 O relatório é gerado por `build_phase12_validation` em uma janela fechada de sete dias. Cada execução persiste o mesmo contrato JSON em `pipeline_validation_reports` e prepara até 30 vídeos ainda não revisados por `select_classification_review_candidates`.
 
+Depois da migration de idioma, tanto a cobertura quanto a fila de revisão consideram somente vídeos com `language_eligibility` no estado `eligible`. Isso evita usar classificações estrangeiras para estimar a qualidade do classificador voltado ao mercado brasileiro, sem apagar revisões ou resultados históricos.
+
 ## Portas de prontidão
 
 Os pesos v1 só ficam elegíveis para calibração manual quando as três condições abaixo forem atendidas:

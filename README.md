@@ -4,7 +4,7 @@ Plataforma de inteligência de conteúdo baseada em n8n, PostgreSQL e LLMs para 
 
 ## Estado do projeto
 
-As Fases 1 a 11 foram concluídas e a Fase 12 está em validação observacional. O pipeline coleta vídeos, acompanha snapshots, classifica conteúdo, calcula scores, agrega tendências, ranqueia oportunidades, produz recomendações e relatórios e consolida a própria saúde operacional.
+As Fases 1 a 11 foram concluídas e a Fase 12 está em validação observacional. O pipeline coleta vídeos, separa idioma observado de mercado-alvo, acompanha snapshots, classifica somente conteúdo linguisticamente elegível, calcula scores, agrega tendências, ranqueia oportunidades, produz recomendações e relatórios e consolida a própria saúde operacional.
 
 A primeira execução da Fase 12 foi concluída tecnicamente, mas retornou `insufficient_data`: o histórico real ainda não atingiu três dias, não há 30 revisões humanas e as seis categorias obrigatórias ainda não possuem amostra 30. Os pesos v1 permanecem inalterados.
 
@@ -125,6 +125,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/015_language_eligibility.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -154,6 +158,14 @@ Valide a fundação do AI Content Classifier:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/ai-content-classifier.sql
+```
+
+Valide o gate de idioma:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/language-eligibility.sql
 ```
 
 Valide o Metrics Engine e o Virality Score:
@@ -225,6 +237,8 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json). O workflow do deployment original possui ID `yXv20DXsRyIyoat2` e está publicado e ativo, com coleta a cada três horas no minuto 5 em `America/Sao_Paulo`; a exportação versionável permanece inativa.
 
+O Content Language Gate exportado está em [workflows/01b-content-language-gate.json](workflows/01b-content-language-gate.json). Ele usa metadados públicos para avaliar somente vídeos sem idioma confiável, aplica confiança mínima configurável e mantém resultados `uncertain` ou `rejected` fora do classificador. O workflow do deployment original possui ID `1cjqpTWdMiaNzNgU`, usa as credenciais `TrendLens PostgreSQL` e NVIDIA e permanece inativo e não publicado até a migration `015` ser aplicada e a execução manual ser validada.
+
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow do deployment original possui ID `LTjMbH3UGW994lCA`, está publicado e ativo e usa backoff auditável para vídeos omitidos por `videos.list`.
 
 O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, está publicado e ativo, processa até 30 vídeos por hora e possui timeout de 55 minutos.
@@ -281,7 +295,9 @@ Após a migration `014`, uma validação real processou sete candidatos, inseriu
 
 ## Classificação estruturada por IA
 
-O classificador seleciona no máximo 30 vídeos ainda não processados por execução horária, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
+Antes da classificação temática, o gate de idioma preserva separadamente `api_language`, `target_language` e `detected_language`. Idioma explícito da API é aceito ou rejeitado por correspondência do idioma-base; metadados sem esse sinal entram em uma fila limitada para detecção conservadora por LLM. O mercado `BR` orienta a coleta, mas não é usado como prova de que o vídeo é brasileiro ou de que sua variante é `pt-BR`.
+
+O classificador seleciona no máximo 30 vídeos ainda não processados e com `language_eligibility` no estado `eligible` por execução horária, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
 
 Cada classificação persiste categoria, tópico, tipo de conteúdo, formato, hook, origem, estilo de apresentação, confiança e três scores entre 0 e 1. Originalidade, risco autoral e risco de conteúdo reutilizado são estimativas heurísticas, não decisões jurídicas, afirmações de violação ou garantias de monetização. Modelo e versão do prompt são gravados em cada linha para auditoria.
 
