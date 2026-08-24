@@ -227,7 +227,7 @@
         "query": "WITH args AS (SELECT $1::bigint AS run_id,$2::bigint AS video_id,$3::text AS external_id,$4::text AS message,$5::text AS model,$6::text AS prompt_version),\ninserted AS (INSERT INTO pipeline_errors (pipeline_run_id,workflow,node,error_type,error_message,external_id,retry_count,metadata)\nSELECT args.run_id,'03 - TrendLens - AI Content Classifier','Classificar conteúdo com IA','ai_classification_error',left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),args.external_id,2,jsonb_build_object('video_id',args.video_id,'classification_model',args.model,'prompt_version',args.prompt_version) FROM args RETURNING id),\nupdated AS (UPDATE pipeline_runs SET items_failed = items_failed + 1,api_calls = api_calls + 1 FROM args WHERE pipeline_runs.id = args.run_id RETURNING pipeline_runs.id,pipeline_runs.items_processed,pipeline_runs.items_failed)\nSELECT updated.*,(SELECT id FROM inserted) AS pipeline_error_id FROM updated;",
         "options": {
           "queryBatching": "single",
-        "queryReplacement": "={{ [ $(\"Processar vídeos\").item.json.pipeline_run_id, $(\"Processar vídeos\").item.json.video_id, $(\"Processar vídeos\").item.json.external_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha na classificação ou validação do JSON\"), $(\"Processar vídeos\").item.json.classification_model, $(\"Processar vídeos\").item.json.prompt_version ] }}",
+          "queryReplacement": "={{ [ $(\"Processar vídeos\").item.json.pipeline_run_id, $(\"Processar vídeos\").item.json.video_id, $(\"Processar vídeos\").item.json.external_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha na classificação ou validação do JSON\"), $(\"Processar vídeos\").item.json.classification_model, $(\"Processar vídeos\").item.json.prompt_version ] }}",
           "largeNumbersOutput": "text"
         }
       },
@@ -249,7 +249,8 @@
           "interval": [
             {
               "field": "hours",
-              "hoursInterval": 1
+              "hoursInterval": 1,
+              "triggerAtMinute": 30
             }
           ]
         }
@@ -270,7 +271,7 @@
         "query": "WITH args AS (SELECT $1::bigint AS run_id,$2::bigint AS video_id,$3::text AS external_id,$4::text AS message,$5::text AS model,$6::text AS prompt_version),\ninserted AS (INSERT INTO pipeline_errors (pipeline_run_id,workflow,node,error_type,error_message,external_id,retry_count,metadata)\nSELECT args.run_id,'03 - TrendLens - AI Content Classifier','Persistir classificação','classification_persistence_error',left(regexp_replace(args.message,'(?i)(authorization|api[_-]?key|token|password|secret)[^ ,;]*','[REDACTED]','g'),4000),args.external_id,2,jsonb_build_object('video_id',args.video_id,'classification_model',args.model,'prompt_version',args.prompt_version) FROM args RETURNING id),\nupdated AS (UPDATE pipeline_runs SET items_failed = items_failed + 1,api_calls = api_calls + 1 FROM args WHERE pipeline_runs.id = args.run_id RETURNING pipeline_runs.id,pipeline_runs.items_processed,pipeline_runs.items_failed)\nSELECT updated.*,(SELECT id FROM inserted) AS pipeline_error_id FROM updated;",
         "options": {
           "queryBatching": "single",
-        "queryReplacement": "={{ [ $(\"Processar vídeos\").item.json.pipeline_run_id, $(\"Processar vídeos\").item.json.video_id, $(\"Processar vídeos\").item.json.external_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha ao persistir classificação\"), $(\"Processar vídeos\").item.json.classification_model, $(\"Processar vídeos\").item.json.prompt_version ] }}",
+          "queryReplacement": "={{ [ $(\"Processar vídeos\").item.json.pipeline_run_id, $(\"Processar vídeos\").item.json.video_id, $(\"Processar vídeos\").item.json.external_id, String($json.message ?? $json.error?.message ?? $json.error ?? \"Falha ao persistir classificação\"), $(\"Processar vídeos\").item.json.classification_model, $(\"Processar vídeos\").item.json.prompt_version ] }}",
           "largeNumbersOutput": "text"
         }
       },

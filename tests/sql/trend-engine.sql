@@ -43,11 +43,13 @@ BEGIN
     LOOP
         INSERT INTO videos (
             platform, external_id, channel_id, channel_name, title, description, url,
-            published_at, duration_seconds, language, region, short_confidence
+            published_at, duration_seconds, language, target_language, detected_language,
+            language_confidence, language_detection_source, language_eligibility,
+            region, short_confidence
         ) VALUES (
             'youtube', fixture.external_id, fixture.external_id || '_channel', 'Fixture channel',
             fixture.external_id, '', 'https://www.youtube.com/watch?v=' || fixture.external_id,
-            fixture.published_at, 45, 'pt', 'BR', 'high'
+            fixture.published_at, 45, 'pt', 'pt', 'pt', 1, 'manual', 'eligible', 'BR', 'high'
         ) RETURNING id INTO fixture_video;
 
         INSERT INTO video_snapshots (video_id, collected_at, views, likes, comments)

@@ -29,6 +29,13 @@ CREATE INDEX IF NOT EXISTS videos_youtube_snapshot_tracking_idx
     ON videos (published_at DESC, id)
     WHERE platform = 'youtube';
 
+CREATE INDEX IF NOT EXISTS videos_language_gate_queue_idx
+    ON videos (language_eligibility, language_retry_after, published_at DESC, id)
+    WHERE platform = 'youtube' AND language_eligibility = 'uncertain';
+
+CREATE INDEX IF NOT EXISTS videos_analysis_eligibility_idx
+    ON videos (platform, language_eligibility, published_at DESC);
+
 CREATE INDEX IF NOT EXISTS video_snapshots_video_collected_idx
     ON video_snapshots (video_id, collected_at DESC);
 

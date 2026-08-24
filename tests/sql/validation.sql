@@ -34,7 +34,9 @@ WITH required_categories AS (
 )
 INSERT INTO videos (
     id, platform, external_id, channel_id, title, description, url,
-    published_at, duration_seconds, language, region, short_confidence
+    published_at, duration_seconds, language, target_language, detected_language,
+    language_confidence, language_detection_source, language_eligibility,
+    region, short_confidence
 )
 SELECT
     92000 + fixture.number,
@@ -47,6 +49,11 @@ SELECT
     TIMESTAMPTZ '1900-05-01 13:00:00+00' + make_interval(mins => fixture.number),
     45,
     'pt',
+    'pt',
+    'pt',
+    1,
+    'manual',
+    'eligible',
     'BR',
     'high'
 FROM generate_series(1, 180) fixture(number);

@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS videos (
     published_at TIMESTAMPTZ NOT NULL,
     duration_seconds INTEGER,
     language VARCHAR(16),
+    api_language VARCHAR(16),
+    target_language VARCHAR(16) NOT NULL DEFAULT 'pt',
+    detected_language VARCHAR(16),
+    language_confidence NUMERIC(5,4),
+    language_detection_source TEXT NOT NULL DEFAULT 'unknown',
+    language_eligibility TEXT NOT NULL DEFAULT 'uncertain',
+    language_evaluated_at TIMESTAMPTZ,
+    language_detection_attempts INTEGER NOT NULL DEFAULT 0,
+    language_retry_after TIMESTAMPTZ,
     region CHAR(2),
     short_confidence TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +100,14 @@ CREATE TABLE IF NOT EXISTS videos (
         CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
     CONSTRAINT videos_region_check
         CHECK (region IS NULL OR region = upper(region)),
+    CONSTRAINT videos_language_confidence_check
+        CHECK (language_confidence IS NULL OR language_confidence BETWEEN 0 AND 1),
+    CONSTRAINT videos_language_detection_source_check
+        CHECK (language_detection_source IN ('youtube_api', 'llm_metadata', 'manual', 'unknown')),
+    CONSTRAINT videos_language_eligibility_check
+        CHECK (language_eligibility IN ('eligible', 'uncertain', 'rejected')),
+    CONSTRAINT videos_language_attempts_check
+        CHECK (language_detection_attempts >= 0),
     CONSTRAINT videos_short_confidence_check
         CHECK (short_confidence IN ('high', 'medium', 'low'))
 );
@@ -915,6 +932,239 @@ CREATE TABLE IF NOT EXISTS video_collection_matches (
         CHECK (search_rank > 0)
 );
 
+CREATE OR REPLACE FUNCTION normalize_language_code(p_language TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+SELECT CASE
+    WHEN p_language IS NULL OR btrim(p_language) = '' THEN NULL
+    WHEN lower(replace(btrim(p_language), '_', '-')) IN ('und', 'unknown', 'null') THEN NULL
+    ELSE lower(replace(btrim(p_language), '_', '-'))
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION language_matches_target(
+    p_detected_language TEXT,
+    p_target_language TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+SELECT split_part(normalize_language_code(p_detected_language), '-', 1)
+       = split_part(normalize_language_code(p_target_language), '-', 1);
+$$;
+
+CREATE OR REPLACE FUNCTION select_language_detection_candidates(
+    p_limit INTEGER,
+    p_description_max_chars INTEGER,
+    p_as_of TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+RETURNS TABLE (
+    video_id BIGINT,
+    external_id TEXT,
+    channel_name TEXT,
+    title TEXT,
+    description TEXT,
+    published_at TIMESTAMPTZ,
+    duration_seconds INTEGER,
+    api_language VARCHAR(16),
+    target_language VARCHAR(16),
+    target_region CHAR(2),
+    short_confidence TEXT,
+    detection_attempts INTEGER,
+    category_hints JSONB
+)
+LANGUAGE sql
+STABLE
+AS $$
+WITH config AS (
+    SELECT GREATEST(
+        COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'LANGUAGE_GATE_MAX_ATTEMPTS'), 3),
+        1
+    ) AS max_attempts
+)
+SELECT
+    video.id,
+    video.external_id,
+    video.channel_name,
+    video.title,
+    left(COALESCE(video.description, ''), GREATEST(p_description_max_chars, 0)),
+    video.published_at,
+    video.duration_seconds,
+    video.api_language,
+    video.target_language,
+    video.region,
+    video.short_confidence,
+    video.language_detection_attempts,
+    COALESCE(hints.category_hints, '[]'::JSONB)
+  FROM videos video
+  CROSS JOIN config
+  LEFT JOIN LATERAL (
+      SELECT jsonb_agg(DISTINCT category.slug ORDER BY category.slug) AS category_hints
+        FROM video_collection_matches match
+        JOIN collection_queries query ON query.id = match.collection_query_id
+        JOIN categories category ON category.id = query.category_id
+       WHERE match.video_id = video.id
+  ) hints ON TRUE
+ WHERE video.platform = 'youtube'
+   AND video.language_eligibility = 'uncertain'
+   AND video.language_detection_attempts < config.max_attempts
+   AND (video.language_retry_after IS NULL OR video.language_retry_after <= p_as_of)
+ ORDER BY video.published_at DESC, video.id
+ LIMIT GREATEST(COALESCE(p_limit, 0), 0);
+$$;
+
+CREATE OR REPLACE FUNCTION persist_language_detection(
+    p_video_id BIGINT,
+    p_detected_language TEXT,
+    p_confidence NUMERIC,
+    p_source TEXT DEFAULT 'llm_metadata',
+    p_evaluated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+RETURNS TABLE (
+    video_id BIGINT,
+    detected_language VARCHAR(16),
+    target_language VARCHAR(16),
+    language_confidence NUMERIC,
+    language_detection_source TEXT,
+    language_eligibility TEXT,
+    language_detection_attempts INTEGER,
+    language_retry_after TIMESTAMPTZ
+)
+LANGUAGE sql
+VOLATILE
+AS $$
+WITH config AS (
+    SELECT
+        GREATEST(0::NUMERIC, LEAST(1::NUMERIC, COALESCE(
+            (SELECT (value #>> '{}')::NUMERIC FROM settings WHERE key = 'LANGUAGE_GATE_MIN_CONFIDENCE'),
+            0.80
+        ))) AS minimum_confidence,
+        GREATEST(COALESCE(
+            (SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'LANGUAGE_GATE_RETRY_HOURS'),
+            24
+        ), 1) AS retry_hours
+), evaluated AS (
+    SELECT
+        video.id,
+        video.target_language,
+        normalize_language_code(p_detected_language) AS detected_language,
+        GREATEST(0::NUMERIC, LEAST(1::NUMERIC, COALESCE(p_confidence, 0))) AS confidence,
+        CASE
+            WHEN p_source IN ('youtube_api', 'llm_metadata', 'manual') THEN p_source
+            ELSE 'llm_metadata'
+        END AS detection_source,
+        config.minimum_confidence,
+        config.retry_hours
+      FROM videos video
+      CROSS JOIN config
+     WHERE video.id = p_video_id
+), decided AS (
+    SELECT
+        evaluated.*,
+        CASE
+            WHEN detected_language IS NULL OR confidence < minimum_confidence THEN 'uncertain'
+            WHEN language_matches_target(detected_language, target_language) THEN 'eligible'
+            ELSE 'rejected'
+        END AS eligibility
+      FROM evaluated
+), updated AS (
+    UPDATE videos video
+       SET detected_language = decided.detected_language,
+           language = decided.detected_language,
+           language_confidence = decided.confidence,
+           language_detection_source = decided.detection_source,
+           language_eligibility = decided.eligibility,
+           language_evaluated_at = p_evaluated_at,
+           language_detection_attempts = video.language_detection_attempts + 1,
+           language_retry_after = CASE
+               WHEN decided.eligibility = 'uncertain'
+                   THEN p_evaluated_at + make_interval(hours => decided.retry_hours)
+               ELSE NULL
+           END
+      FROM decided
+     WHERE video.id = decided.id
+    RETURNING video.*
+)
+SELECT
+    updated.id,
+    updated.detected_language,
+    updated.target_language,
+    updated.language_confidence,
+    updated.language_detection_source,
+    updated.language_eligibility,
+    updated.language_detection_attempts,
+    updated.language_retry_after
+  FROM updated;
+$$;
+
+CREATE OR REPLACE FUNCTION record_language_detection_failure(
+    p_video_id BIGINT,
+    p_failed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+RETURNS TABLE (
+    video_id BIGINT,
+    language_detection_attempts INTEGER,
+    language_retry_after TIMESTAMPTZ
+)
+LANGUAGE sql
+VOLATILE
+AS $$
+WITH config AS (
+    SELECT GREATEST(COALESCE(
+        (SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'LANGUAGE_GATE_RETRY_HOURS'),
+        24
+    ), 1) AS retry_hours
+), updated AS (
+    UPDATE videos video
+       SET language_evaluated_at = p_failed_at,
+           language_detection_attempts = video.language_detection_attempts + 1,
+           language_retry_after = p_failed_at + make_interval(hours => config.retry_hours)
+      FROM config
+     WHERE video.id = p_video_id
+    RETURNING video.id, video.language_detection_attempts, video.language_retry_after
+)
+SELECT * FROM updated;
+$$;
+
+CREATE OR REPLACE FUNCTION set_manual_language_eligibility(
+    p_video_id BIGINT,
+    p_detected_language TEXT,
+    p_eligibility TEXT,
+    p_reviewed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+RETURNS TABLE (
+    video_id BIGINT,
+    detected_language VARCHAR(16),
+    language_eligibility TEXT,
+    language_evaluated_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+BEGIN
+    IF p_eligibility NOT IN ('eligible', 'uncertain', 'rejected') THEN
+        RAISE EXCEPTION 'Invalid language eligibility: %', p_eligibility;
+    END IF;
+
+    RETURN QUERY
+    UPDATE videos video
+       SET detected_language = normalize_language_code(p_detected_language),
+           language = normalize_language_code(p_detected_language),
+           language_confidence = 1,
+           language_detection_source = 'manual',
+           language_eligibility = p_eligibility,
+           language_evaluated_at = p_reviewed_at,
+           language_retry_after = NULL
+     WHERE video.id = p_video_id
+    RETURNING video.id, video.detected_language, video.language_eligibility, video.language_evaluated_at;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION select_classification_candidates(
     p_limit INTEGER,
     p_description_max_chars INTEGER
@@ -936,32 +1186,33 @@ LANGUAGE sql
 STABLE
 AS $$
 SELECT
-    v.id AS video_id,
-    v.external_id,
-    v.channel_name,
-    v.title,
-    left(COALESCE(v.description, ''), GREATEST(p_description_max_chars, 0)) AS description,
-    v.published_at,
-    v.duration_seconds,
-    v.language,
-    v.region,
-    v.short_confidence,
-    COALESCE(hints.category_hints, '[]'::jsonb) AS category_hints
-  FROM videos v
+    video.id,
+    video.external_id,
+    video.channel_name,
+    video.title,
+    left(COALESCE(video.description, ''), GREATEST(p_description_max_chars, 0)),
+    video.published_at,
+    video.duration_seconds,
+    video.detected_language,
+    video.region,
+    video.short_confidence,
+    COALESCE(hints.category_hints, '[]'::JSONB)
+  FROM videos video
   LEFT JOIN LATERAL (
-      SELECT jsonb_agg(DISTINCT c.slug ORDER BY c.slug) AS category_hints
-        FROM video_collection_matches m
-        JOIN collection_queries q ON q.id = m.collection_query_id
-        JOIN categories c ON c.id = q.category_id
-       WHERE m.video_id = v.id
+      SELECT jsonb_agg(DISTINCT category.slug ORDER BY category.slug) AS category_hints
+        FROM video_collection_matches match
+        JOIN collection_queries query ON query.id = match.collection_query_id
+        JOIN categories category ON category.id = query.category_id
+       WHERE match.video_id = video.id
   ) hints ON TRUE
- WHERE v.platform = 'youtube'
+ WHERE video.platform = 'youtube'
+   AND video.language_eligibility = 'eligible'
    AND NOT EXISTS (
        SELECT 1
          FROM video_classifications classification
-        WHERE classification.video_id = v.id
+        WHERE classification.video_id = video.id
    )
- ORDER BY v.published_at DESC, v.id
+ ORDER BY video.published_at DESC, video.id
  LIMIT GREATEST(p_limit, 0);
 $$;
 
@@ -1693,6 +1944,7 @@ WITH config AS (
       JOIN videos video
         ON video.published_at >= period_window.window_start
        AND video.published_at < period_window.window_end
+       AND video.language_eligibility = 'eligible'
       JOIN video_classifications classification
         ON classification.video_id = video.id
       LEFT JOIN categories category ON category.id = classification.category_id
@@ -2844,7 +3096,8 @@ WITH config AS (
         (6, '06 - TrendLens - Monetization Engine', 'monetization'),
         (7, '07 - TrendLens - Opportunity Engine', 'opportunities'),
         (8, '08 - TrendLens - Recommendation AI', 'recommendations'),
-        (9, '09 - TrendLens - Report', 'reporting')
+        (9, '09 - TrendLens - Report', 'reporting'),
+        (10, '01B - TrendLens - Content Language Gate', 'language_eligibility')
       ) AS workflow(sort_order, workflow, stage)
 ), period_runs AS MATERIALIZED (
     SELECT run.*
@@ -3033,6 +3286,8 @@ WITH config AS (
       FROM (
         SELECT COALESCE(category.slug, 'uncategorized') AS category, count(*)::INTEGER AS videos
           FROM video_classifications classification
+          JOIN videos video ON video.id = classification.video_id
+             AND video.language_eligibility = 'eligible'
           LEFT JOIN categories category ON category.id = classification.category_id
           CROSS JOIN bounds
          WHERE classification.classified_at < bounds.period_end
@@ -3067,6 +3322,7 @@ WITH config AS (
               CROSS JOIN config
               CROSS JOIN bounds
              WHERE metric.calculation_version = config.metrics_version
+               AND video.language_eligibility = 'eligible'
                AND metric.calculated_at < bounds.period_end
              ORDER BY metric.video_id, metric.calculated_at DESC, metric.id DESC
           ) latest
@@ -3381,7 +3637,8 @@ WITH candidates AS (
             JOIN collection_queries query ON query.id = match.collection_query_id
            WHERE match.video_id = video.id
       ) provenance ON TRUE
-     WHERE NOT EXISTS (
+     WHERE video.language_eligibility = 'eligible'
+       AND NOT EXISTS (
         SELECT 1
           FROM classification_validation_reviews review
          WHERE review.video_id = classification.video_id
@@ -3481,6 +3738,7 @@ WITH config AS (
       FROM videos video
       CROSS JOIN bounds
      WHERE video.platform = 'youtube'
+       AND video.language_eligibility = 'eligible'
        AND video.published_at >= bounds.period_start
        AND video.published_at < bounds.period_end
 ), period_snapshots AS MATERIALIZED (

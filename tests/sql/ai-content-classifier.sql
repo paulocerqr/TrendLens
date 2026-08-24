@@ -53,25 +53,31 @@ BEGIN
 
     INSERT INTO videos (
         platform, external_id, channel_id, channel_name, title, description, url,
-        published_at, duration_seconds, language, region, short_confidence
+        published_at, duration_seconds, language, target_language, detected_language,
+        language_confidence, language_detection_source, language_eligibility,
+        region, short_confidence
     )
     VALUES (
         'youtube', '__classifier_unclassified', '__classifier_channel', 'Classifier fixture',
         'Tutorial rápido com narração original', repeat('x', 50),
         'https://www.youtube.com/watch?v=__classifier_unclassified',
-        TIMESTAMPTZ '2100-01-02 12:00:00+00', 45, 'pt', 'BR', 'medium'
+        TIMESTAMPTZ '2100-01-02 12:00:00+00', 45, 'pt', 'pt', 'pt',
+        1, 'manual', 'eligible', 'BR', 'medium'
     )
     RETURNING id INTO unclassified_video_id;
 
     INSERT INTO videos (
         platform, external_id, channel_id, channel_name, title, description, url,
-        published_at, duration_seconds, language, region, short_confidence
+        published_at, duration_seconds, language, target_language, detected_language,
+        language_confidence, language_detection_source, language_eligibility,
+        region, short_confidence
     )
     VALUES (
         'youtube', '__classifier_classified', '__classifier_channel', 'Classifier fixture',
         'Corte de filme com legendas', 'Trecho de uma produção audiovisual.',
         'https://www.youtube.com/watch?v=__classifier_classified',
-        TIMESTAMPTZ '2100-01-01 12:00:00+00', 30, 'pt', 'BR', 'high'
+        TIMESTAMPTZ '2100-01-01 12:00:00+00', 30, 'pt', 'pt', 'pt',
+        1, 'manual', 'eligible', 'BR', 'high'
     )
     RETURNING id INTO classified_video_id;
 

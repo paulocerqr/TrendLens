@@ -60,11 +60,11 @@ VALUES
 
 INSERT INTO videos (
     id, platform, external_id, channel_id, title, url, published_at,
-    duration_seconds, language, region, short_confidence
+    duration_seconds, language, region, short_confidence, target_language, detected_language, language_confidence, language_detection_source, language_eligibility
 )
 VALUES
-    (91001, 'youtube', 'obs-video-1', 'obs-channel', 'Observability video 1', 'https://example.test/obs-video-1', '1900-04-02 12:00:00+00', 45, 'pt', 'BR', 'high'),
-    (91002, 'youtube', 'obs-video-2', 'obs-channel', 'Observability video 2', 'https://example.test/obs-video-2', '1900-04-02 13:00:00+00', 50, 'pt', 'BR', 'medium');
+    (91001, 'youtube', 'obs-video-1', 'obs-channel', 'Observability video 1', 'https://example.test/obs-video-1', '1900-04-02 12:00:00+00', 45, 'pt', 'BR', 'high', 'pt', 'pt', 1, 'manual', 'eligible'),
+    (91002, 'youtube', 'obs-video-2', 'obs-channel', 'Observability video 2', 'https://example.test/obs-video-2', '1900-04-02 13:00:00+00', 50, 'pt', 'BR', 'medium', 'pt', 'pt', 1, 'manual', 'eligible');
 
 INSERT INTO video_classifications (
     video_id, category_id, topic, content_type, format, hook_type,
@@ -122,7 +122,7 @@ BEGIN
        OR observability.period_end <> TIMESTAMPTZ '1900-04-03 12:00:00+00'
        OR observability.observability_version <> 'observability-test-v1'
        OR observability.overall_status <> 'critical'
-       OR observability.workflow_count <> 9
+       OR observability.workflow_count <> 10
        OR observability.run_count <> 3
        OR observability.error_count <> 2
        OR observability.retry_count <> 2 THEN
@@ -143,7 +143,7 @@ BEGIN
        OR jsonb_array_length(observability.report_json #> '{pipeline_metrics,high_virality_videos,top_items}') <> 1
        OR observability.report_json #>> '{pipeline_metrics,high_virality_videos,top_items,0,virality_score}' <> '8.0000'
        OR observability.report_json #>> '{pipeline_metrics,high_opportunity_categories,total}' <> '1'
-       OR jsonb_array_length(observability.report_json -> 'workflow_health') <> 9
+       OR jsonb_array_length(observability.report_json -> 'workflow_health') <> 10
        OR jsonb_array_length(observability.report_json -> 'recent_errors') <> 2
        OR observability.report_json::TEXT ~ '"error_message"[[:space:]]*:|Provider request failed|batch_number|test-model'
        OR observability.source_hash !~ '^[a-f0-9]{32}$' THEN
