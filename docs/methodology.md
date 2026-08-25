@@ -201,7 +201,7 @@ O contrato final foi versionado como `v2`. O relatório foi persistido em JSON e
 
 ## Observabilidade do pipeline
 
-A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia dez workflows produtivos, incluindo o gate de idioma, em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente.
+A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia dez workflows produtivos, incluindo o gate de idioma, em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente. Antes de interpretar runs antigos interrompidos, `reconcile_stale_pipeline_runs` pode encerrá-los como `cancelled` usando o mesmo limite configurado; a correção não inventa falhas nem altera contadores.
 
 Cada workflow recebe um estado derivado:
 
@@ -211,6 +211,8 @@ Cada workflow recebe um estado derivado:
 - `unknown`: não houve execução dentro da janela.
 
 O estado geral é `critical` quando qualquer etapa é crítica, `degraded` quando não há etapa crítica mas existe etapa degradada e `healthy` nos demais casos. Workflows `unknown` permanecem contabilizados sem tornar o estado geral crítico, pois nem todas as etapas possuem a mesma frequência ou estão publicadas.
+
+Relatórios de observabilidade já persistidos permanecem como snapshots históricos. Depois de uma reconciliação, uma nova execução do workflow 10 produz outro snapshot com a fonte corrigida, sem sobrescrever o diagnóstico anterior.
 
 Os indicadores operacionais distinguem vídeos coletados, novos e duplicados, snapshots, classificações, erros de classificação, erros de API, itens com erro e retries. A latência média de classificação é ponderada pela quantidade processada mais a quantidade com erro. A distribuição por categoria usa o inventário classificado; alta viralidade considera somente a métrica mais recente de cada vídeo na versão corrente; oportunidades usam o bucket agregado mais recente e as versões configuradas.
 

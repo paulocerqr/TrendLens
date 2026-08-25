@@ -145,6 +145,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/020_stale_pipeline_run_reconciliation.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -230,6 +234,14 @@ Valide o bloqueio de recomendações com amostra insuficiente:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/recommendation-ai.sql
+```
+
+Valide a reconciliação auditável de execuções obsoletas:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/stale-pipeline-runs.sql
 ```
 
 Valide a Fase 12:

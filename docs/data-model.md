@@ -180,6 +180,10 @@ Função SQL estável que seleciona um contexto de idioma compatível, reúne ca
 
 Registra status, duração, contadores, chamadas de API e estimativa de quota por execução.
 
+### `reconcile_stale_pipeline_runs`
+
+Função transacional e idempotente que seleciona somente runs ainda em `running` e anteriores ao limite `OBSERVABILITY_STALE_RUN_MINUTES`. Cada run elegível passa para `cancelled`; `finished_at` e `duration_seconds` são inferidos no instante em que o limite foi alcançado, os contadores permanecem intactos e `metadata.stale_run_reconciliation` registra estado anterior, motivo, limite, instante da correção e que o término foi inferido. Runs exatamente na fronteira, recentes ou já concluídos não são alterados.
+
 ### `pipeline_errors`
 
 Registra falhas associadas opcionalmente a uma execução. A sanitização de secrets é responsabilidade do workflow antes do insert.
