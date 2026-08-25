@@ -92,7 +92,7 @@ VALUES
     ('REPORT_TIMEZONE', '"America/Sao_Paulo"'::JSONB, 'Fuso horário usado para apresentar datas no relatório Markdown.'),
     ('OBSERVABILITY_PERIOD', '"24 hours"'::JSONB, 'Janela fechada usada pelos relatórios de observabilidade.'),
     ('OBSERVABILITY_VERSION', '"v2-language-eligible"'::JSONB, 'Versão da observabilidade com o gate de idioma e indicadores analíticos filtrados.'),
-    ('OBSERVABILITY_STALE_RUN_MINUTES', '120'::JSONB, 'Tempo máximo, em minutos, para uma execução permanecer running.'),
+    ('OBSERVABILITY_STALE_RUN_MINUTES', '120'::JSONB, 'Tempo máximo, em minutos, antes de uma execução running ser considerada interrompida e elegível para reconciliação.'),
     ('OBSERVABILITY_HIGH_VIRALITY_THRESHOLD', '7'::JSONB, 'Virality Score mínimo para contabilizar vídeos de alta viralidade.'),
     ('OBSERVABILITY_HIGH_OPPORTUNITY_THRESHOLD', '7'::JSONB, 'Opportunity Score mínimo para destacar categorias.'),
     ('OBSERVABILITY_ERROR_LIMIT', '20'::JSONB, 'Quantidade máxima de eventos recentes incluídos no relatório.'),
