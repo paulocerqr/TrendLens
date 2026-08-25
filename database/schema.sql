@@ -2413,6 +2413,7 @@ WITH config AS (
     SELECT
         GREATEST(0, LEAST(50, COALESCE(p_limit, (SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'RECOMMENDATION_MAX_CATEGORIES_PER_RUN'), 5))) AS max_categories,
         GREATEST(1, LEAST(20, COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'RECOMMENDATION_CONTEXT_LIMIT'), 5))) AS context_limit,
+        GREATEST(1, COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'MIN_SAMPLE_SIZE'), 30)) AS minimum_sample_size,
         GREATEST(0::NUMERIC, LEAST(10::NUMERIC, COALESCE((SELECT (value #>> '{}')::NUMERIC FROM settings WHERE key = 'RECOMMENDATION_MIN_OPPORTUNITY_SCORE'), 0))) AS minimum_score,
         COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'RECOMMENDATION_MODEL'), ''), NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'LLM_MODEL'), ''), 'nvidia/llama-3.3-nemotron-super-49b-v1') AS recommendation_model,
         COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'RECOMMENDATION_PROMPT_VERSION'), ''), 'v2') AS prompt_version,
@@ -2434,6 +2435,7 @@ WITH config AS (
        AND statistic.dimension_type = 'category'
        AND statistic.category_slug IS NOT NULL
        AND statistic.opportunity_score >= config.minimum_score
+       AND statistic.sample_size >= config.minimum_sample_size
 ), evidenced AS (
     SELECT
         candidate.*,
@@ -2484,6 +2486,7 @@ WITH config AS (
                          AND related.language IS NOT DISTINCT FROM candidate.language
                          AND related.calculation_version = candidate.calculation_version
                          AND related.dimension_type = 'category_format_source'
+                         AND related.sample_size >= config.minimum_sample_size
                          AND related.category_slug = candidate.category_slug
                        ORDER BY related.opportunity_score DESC NULLS LAST, related.sample_size DESC
                        LIMIT config.context_limit
@@ -2504,6 +2507,7 @@ WITH config AS (
                          AND related.language IS NOT DISTINCT FROM candidate.language
                          AND related.calculation_version = candidate.calculation_version
                          AND related.dimension_type = 'format'
+                         AND related.sample_size >= config.minimum_sample_size
                        ORDER BY related.opportunity_score DESC NULLS LAST, related.sample_size DESC
                        LIMIT config.context_limit
                   ) format_statistic
@@ -2523,6 +2527,7 @@ WITH config AS (
                          AND related.language IS NOT DISTINCT FROM candidate.language
                          AND related.calculation_version = candidate.calculation_version
                          AND related.dimension_type = 'hook_type'
+                         AND related.sample_size >= config.minimum_sample_size
                        ORDER BY related.opportunity_score DESC NULLS LAST, related.sample_size DESC
                        LIMIT config.context_limit
                   ) hook_statistic

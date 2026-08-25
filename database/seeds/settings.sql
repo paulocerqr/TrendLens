@@ -81,7 +81,7 @@ VALUES
     ('RECOMMENDATION_CONTEXT_LIMIT', '5'::JSONB, 'Quantidade máxima de padrões agregados por dimensão incluídos como contexto da IA.'),
     ('RECOMMENDATION_PROMPT_VERSION', '"v2"'::JSONB, 'Versão do prompt estruturado do Recommendation Engine.'),
     ('RECOMMENDATION_MODEL', '"nvidia/llama-3.3-nemotron-super-49b-v1"'::JSONB, 'Modelo NVIDIA NIM utilizado pelo Recommendation Engine, sem armazenar credenciais.'),
-    ('MIN_SAMPLE_SIZE', '30'::JSONB, 'Amostra mínima inicial para estatísticas agregadas.'),
+    ('MIN_SAMPLE_SIZE', '30'::JSONB, 'Amostra mínima obrigatória para categorias e padrões agregados enviados ao Recommendation AI.'),
     ('REPORT_PERIOD', '"7 days"'::JSONB, 'Período padrão dos relatórios agregados.'),
     ('REPORT_VERSION', '"v2"'::JSONB, 'Versão do contrato JSON e da apresentação Markdown do relatório.'),
     ('REPORT_TOP_OPPORTUNITIES_LIMIT', '5'::JSONB, 'Quantidade máxima de oportunidades exibidas no relatório.'),

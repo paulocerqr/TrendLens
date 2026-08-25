@@ -7,6 +7,7 @@ UPDATE settings SET value = '"recommendation-test-v1"'::JSONB WHERE key = 'RECOM
 UPDATE settings SET value = '3'::JSONB WHERE key = 'RECOMMENDATION_MAX_CATEGORIES_PER_RUN';
 UPDATE settings SET value = '5'::JSONB WHERE key = 'RECOMMENDATION_MIN_OPPORTUNITY_SCORE';
 UPDATE settings SET value = '3'::JSONB WHERE key = 'RECOMMENDATION_CONTEXT_LIMIT';
+UPDATE settings SET value = '30'::JSONB WHERE key = 'MIN_SAMPLE_SIZE';
 UPDATE settings SET value = '"trend-recommendation-test-v1"'::JSONB WHERE key = 'TREND_CALCULATION_VERSION';
 
 INSERT INTO category_statistics (
@@ -21,11 +22,14 @@ INSERT INTO category_statistics (
 )
 VALUES
     ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'technology', 'category', 'technology', 40, 1000, 1500, 2200, 0.08, 500, 9, 8, 0.20, 0.30, 7, 8.35, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
-    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'education', 'category', 'education', 35, 800, 1200, 1800, 0.06, 350, 7, 7, 0.12, 0.20, 6, 6.85, 2, 0.5, 3, 'opportunity-test-v1', '1900-02-08', 'stable', 'trend-recommendation-test-v1'),
-    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'gaming', 'category', 'gaming', 20, 400, 700, 1100, 0.04, 180, 4, 4, 0.05, 0.10, 3, 3.85, 3, 0, 3, 'opportunity-test-v1', '1900-02-08', 'declining', 'trend-recommendation-test-v1'),
-    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'technology', 'category_format_source', 'technology|tutorial|original', 25, 900, 1400, 2000, 0.07, 420, 8, 8, 0.18, 0.25, 6, 7.7, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'education', 'category', 'education', 30, 800, 1200, 1800, 0.06, 350, 7, 7, 0.12, 0.20, 6, 6.85, 2, 0.5, 3, 'opportunity-test-v1', '1900-02-08', 'stable', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'gaming', 'category', 'gaming', 29, 400, 700, 1100, 0.04, 180, 9.5, 9, 0.25, 0.35, 8, 9.25, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'technology', 'category_format_source', 'technology|tutorial|original', 30, 900, 1400, 2000, 0.07, 420, 8, 8, 0.18, 0.25, 6, 7.7, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', 'technology', 'category_format_source', 'technology|thin_pattern|original', 29, 950, 1450, 2050, 0.08, 450, 9, 9, 0.22, 0.32, 8, 9.1, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
     ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', NULL, 'format', 'tutorial', 50, 850, 1300, 1900, 0.065, 390, 7.5, 7.8, 0.16, 0.22, 6.5, 7.41, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
-    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', NULL, 'hook_type', 'curiosity_gap', 45, 820, 1250, 1850, 0.064, 380, 7.4, 7.4, 0.15, 0.21, 6.4, 7.19, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1');
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', NULL, 'format', 'thin_format', 29, 900, 1400, 2100, 0.08, 440, 9, 9, 0.22, 0.32, 8, 9.05, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', NULL, 'hook_type', 'curiosity_gap', 45, 820, 1250, 1850, 0.064, 380, 7.4, 7.4, 0.15, 0.21, 6.4, 7.19, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1'),
+    ('1900-02-01', '1900-02-08', 'youtube', 'BR', 'pt', NULL, 'hook_type', 'thin_hook', 29, 890, 1380, 2080, 0.08, 430, 9, 9, 0.21, 0.31, 8, 9, 1, 1, 3, 'opportunity-test-v1', '1900-02-08', 'rising', 'trend-recommendation-test-v1');
 
 DO $$
 DECLARE
@@ -49,6 +53,7 @@ BEGIN
        OR jsonb_array_length(candidate.evidence_json -> 'category_format_source_patterns') <> 1
        OR jsonb_array_length(candidate.evidence_json -> 'context_top_formats') <> 1
        OR jsonb_array_length(candidate.evidence_json -> 'context_top_hooks') <> 1
+       OR candidate.evidence_json::TEXT ~ 'thin_(pattern|format|hook)'
        OR candidate.evidence_hash !~ '^[a-f0-9]{32}$' THEN
         RAISE EXCEPTION 'Recommendation candidate is incorrect: %', row_to_json(candidate);
     END IF;
