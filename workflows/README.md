@@ -81,17 +81,36 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - saída JSON validada por schema e uma tentativa automática de correção;
 - persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
 - estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
-- retries limitados, erros sanitizados e contadores em `pipeline_runs`;
+- backoff persistente de 6h e 12h para falhas terminais;
+- limite inicial de três falhas e encaminhamento para revisão manual;
+- erros sanitizados, tentativas auditáveis e contadores em `pipeline_runs`;
 - lote configurável de até 30 vídeos por execução;
 - Manual Trigger e Schedule Trigger de execução a cada hora, com timeout de 55 minutos.
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
 
-O workflow `86iKeeCFXiiX3fki` está publicado e ativo. A exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está ativo com a versão anterior. O draft de confiabilidade está salvo e permanece sem publicação até a aplicação da migration `017` no PostgreSQL do servidor; a exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
-Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. O workflow final possui 13 nodes e está publicado e ativo.
+Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. A migration `017` acrescenta estado durável por vídeo e converte falhas históricas ainda não classificadas para `retry_wait` ou `manual_review`. O workflow continua com 13 nodes.
+
+Consulte e resolva a fila manual pelo PostgreSQL:
+
+```sql
+SELECT *
+FROM select_classification_failure_review_candidates(100);
+
+SELECT *
+FROM resolve_classification_failure_review(
+    1705,
+    'retry',
+    'reviewer-name',
+    'Metadados revisados; liberar novo ciclo.'
+);
+```
+
+Troque `retry` por `exclude` quando o vídeo deva permanecer armazenado, mas não voltar ao classificador.
 
 ## 04 - TrendLens - Metrics Engine & Virality Score
 

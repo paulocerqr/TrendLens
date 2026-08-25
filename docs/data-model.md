@@ -100,7 +100,23 @@ Permite revisão explícita de um vídeo inconclusivo. A origem passa a `manual`
 
 ### `select_classification_candidates`
 
-Função SQL que retorna somente vídeos do YouTube com `language_eligibility` no estado `eligible` e sem linha em `video_classifications`. O limite e o tamanho máximo da descrição são argumentos explícitos; as categorias das queries que encontraram o vídeo são agregadas como pistas de baixa confiança.
+Função SQL que retorna somente vídeos do YouTube com `language_eligibility` no estado `eligible`, sem linha em `video_classifications` e sem bloqueio operacional. Itens novos, liberados manualmente ou com backoff vencido são elegíveis; estados `manual_review`, `excluded` e `completed` permanecem fora da fila. O limite e o tamanho máximo da descrição são argumentos explícitos; as categorias das queries que encontraram o vídeo são agregadas como pistas de baixa confiança.
+
+### `video_classification_processing_state`
+
+Mantém somente o histórico operacional de vídeos que já falharam. `attempt_count` representa o ciclo automático atual, enquanto `total_attempt_count` nunca é zerado. O estado pode ser `pending`, `retry_wait`, `manual_review`, `excluded` ou `completed`; timestamps de falha, sucesso e revisão preservam a trilha de auditoria sem duplicar mensagens de erro.
+
+### `record_classification_failure`
+
+Incrementa os contadores de forma atômica, lê os limites de `settings` e calcula o próximo retry exponencial. Com os valores iniciais, a primeira falha espera 6 horas, a segunda 12 horas e a terceira remove o vídeo da fila automática.
+
+### `select_classification_failure_review_candidates`
+
+Expõe a fila de falhas terminais com metadados públicos do vídeo, contadores e a última mensagem já sanitizada em `pipeline_errors`. Essa fila é operacional e não se confunde com a amostra de avaliação metodológica da Fase 12.
+
+### `resolve_classification_failure_review`
+
+Exige pessoa revisora e aceita somente `retry` ou `exclude`. `retry` reinicia o contador do ciclo e devolve o vídeo à fila, preservando o total histórico; `exclude` mantém o vídeo armazenado, mas impede novas classificações automáticas.
 
 ## Dados derivados
 

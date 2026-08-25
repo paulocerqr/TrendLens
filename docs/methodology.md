@@ -113,6 +113,8 @@ Cada execução horária seleciona até 30 candidatos. Esse limite acompanha a v
 
 A resposta deve obedecer a um JSON Schema fechado. Campos livres usam `snake_case`; formato, hook, origem e categoria usam vocabulários controlados; scores e confiança ficam entre 0 e 1. Uma saída inválida passa por uma tentativa automática de correção com o mesmo provedor. Se ainda falhar, o erro é sanitizado, contabilizado e o próximo vídeo é processado.
 
+Falhas terminais do modelo, parser ou persistência usam estado durável por vídeo. O backoff inicial é de seis horas e dobra por tentativa, limitado a 48 horas; o máximo inicial é três falhas. Ao atingir o limite, o item passa para `manual_review` e deixa de consumir chamadas do modelo. A pessoa revisora pode liberar um novo ciclo com `retry` ou manter o vídeo fora da automação com `exclude`; ambas as decisões preservam o vídeo, os erros sanitizados e o total histórico de tentativas.
+
 As categorias derivadas da coleta são apenas pistas e não determinam a resposta. O classificador não afirma violação de copyright nem elegibilidade de monetização: `copyright_risk` e `reused_content_risk` representam somente estimativas baseadas nos metadados disponíveis. `classification_model` e `prompt_version` tornam cada resultado auditável.
 
 ## Primeira execução do AI Content Classifier

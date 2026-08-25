@@ -133,6 +133,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/017_classifier_reliability.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -162,6 +166,14 @@ Valide a fundação do AI Content Classifier:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/ai-content-classifier.sql
+```
+
+Valide o backoff, o limite de tentativas e a fila de revisão manual:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/classifier-reliability.sql
 ```
 
 Valide o gate de idioma:
@@ -245,7 +257,7 @@ O Content Language Gate exportado está em [workflows/01b-content-language-gate.
 
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow do deployment original possui ID `LTjMbH3UGW994lCA`, está publicado e ativo e usa backoff auditável para vídeos omitidos por `videos.list`.
 
-O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, está publicado e ativo, processa até 30 vídeos por hora e possui timeout de 55 minutos.
+O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, processa até 30 vídeos por hora e possui timeout de 55 minutos. A versão com confiabilidade persistente exige a migration `017`: falhas terminais aguardam 6h e 12h, e a terceira falha sai da fila automática para revisão manual. O draft está salvo no n8n, mas a versão ativa anterior permanece publicada até a aplicação da migration no servidor.
 
 O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `zf3Wwl1aUINxrGEy` e foi publicado e ativado após validação explícita do usuário.
 
