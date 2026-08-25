@@ -125,7 +125,7 @@ O Trend Engine chama `refresh_category_statistics` e materializa estatísticas p
 
 O Opportunity Engine chama `refresh_opportunity_rankings` sobre o bucket mais recente do Trend Engine. A função exige Virality, Monetization e Consistency, calcula o score ponderado e persiste rank e percentil dentro de cada contexto comparável e tipo de dimensão.
 
-O Recommendation AI chama `select_recommendation_candidates` e envia ao modelo somente evidências agregadas do bucket corrente: estatísticas da categoria, padrões categoria–formato–origem e os melhores formatos e hooks do contexto. A saída passa por um parser estruturado antes de ser persistida em `recommendations`; o hash da evidência e as versões de prompt, modelo e cálculos tornam o processamento idempotente e auditável.
+O Recommendation AI chama `select_recommendation_candidates` e envia ao modelo somente evidências agregadas do bucket corrente cuja amostra alcança `MIN_SAMPLE_SIZE`. A política vale para a categoria principal, padrões categoria–formato–origem e os melhores formatos e hooks do contexto. A saída passa por um parser estruturado antes de ser persistida em `recommendations`; o hash da evidência e as versões de prompt, modelo e cálculos tornam o processamento idempotente e auditável.
 
 O Report Engine chama `build_trendlens_report` para transformar o bucket agregado mais recente em JSON e Markdown sem uma nova etapa de IA. A função escolhe uma variante regional compatível com o idioma configurado, inclui somente recomendações do prompt atual e separa Top Opportunities, Viral but Risky e tendências emergentes. O payload e a apresentação são persistidos em `reports` com versões e hash da fonte.
 

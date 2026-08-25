@@ -164,7 +164,7 @@ Os quatro arrays exigem de um a cinco itens. O índice único de evidência trat
 
 ### `select_recommendation_candidates`
 
-Função SQL estável que seleciona categorias com Opportunity Score no bucket corrente, aplica limite e score mínimo configuráveis e monta a evidência agregada. O JSON inclui o escopo, as estatísticas da categoria e listas limitadas de padrões de formato, origem e hook do mesmo contexto. Candidatos cuja combinação de evidência, modelo e versão já foi persistida são excluídos antes da chamada à IA.
+Função SQL estável que seleciona categorias com Opportunity Score no bucket corrente, aplica limite, score mínimo e `MIN_SAMPLE_SIZE` configuráveis e monta a evidência agregada. Categorias abaixo da amostra mínima são bloqueadas antes da chamada à IA; estatísticas auxiliares de formato, hook e categoria–formato–origem abaixo da mesma fronteira são removidas do contexto. O limite é inclusivo. Candidatos cuja combinação de evidência, modelo e versão já foi persistida são excluídos antes da chamada à IA.
 
 ### `reports`
 

@@ -167,9 +167,11 @@ Após sincronizar Metrics, Monetization e Trend, a execução final processou 10
 
 ## Recomendações estruturadas por IA
 
-O Recommendation AI seleciona apenas dimensões de categoria do bucket mais recente que possuem Opportunity Score. O contexto entregue ao modelo contém estatísticas agregadas da categoria, padrões agregados de categoria–formato–origem e rankings agregados de formatos e hooks; IDs, títulos, descrições e metadados de vídeos individuais não fazem parte da evidência.
+O Recommendation AI seleciona apenas dimensões de categoria do bucket mais recente que possuem Opportunity Score e `sample_size >= MIN_SAMPLE_SIZE`. O valor inicial é 30 e permanece operacionalmente configurável no PostgreSQL. A condição usa limite inclusivo: 30 entra, 29 não entra. O contexto entregue ao modelo contém somente padrões de categoria–formato–origem e rankings de formatos e hooks que também alcançam essa amostra mínima; IDs, títulos, descrições e metadados de vídeos individuais não fazem parte da evidência.
 
 O modelo produz uma síntese acionável e de uma a cinco sugestões em cada grupo: formatos, hooks, riscos e observações de monetização. O prompt proíbe copiar vídeos específicos, inventar ou recalcular métricas, tratar correlação como causalidade e prometer viralização, receita ou conformidade. As sugestões descrevem padrões reutilizáveis, enquanto os scores persistidos continuam vindo exclusivamente do PostgreSQL.
+
+O bloqueio ocorre antes da chamada ao modelo, portanto categorias insuficientes não consomem quota de IA. Recomendações históricas permanecem preservadas para auditoria e não são tratadas como candidatas novas pela política.
 
 A resposta deve obedecer a um JSON Schema fechado e pode passar por uma tentativa automática de correção. A persistência registra modelo, versão do prompt, versões dos cálculos de origem, contexto comparável e hash da evidência. Uma chave única com `NULLS NOT DISTINCT` evita recomendações duplicadas para a mesma evidência, inclusive quando execuções concorrentes selecionam os mesmos candidatos.
 
