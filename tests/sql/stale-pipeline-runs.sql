@@ -13,6 +13,11 @@ INSERT INTO pipeline_runs (
 )
 VALUES
     (
+        91999, '01B - TrendLens - Content Language Gate',
+        '2100-05-01 07:00:00+00', NULL, 'running',
+        1, 0, 0, 0, 0, 0, NULL, '{"fixture":"unrelated_stale"}'::JSONB
+    ),
+    (
         92001, '03 - TrendLens - AI Content Classifier',
         '2100-05-01 08:00:00+00', NULL, 'running',
         30, 27, 0, 3, 30, 0, NULL, '{"fixture":"stale"}'::JSONB
@@ -43,10 +48,11 @@ BEGIN
     END IF;
 
     SELECT count(*) INTO reconciled_count
-      FROM reconcile_stale_pipeline_runs('2100-05-01 12:00:00+00', NULL);
+      FROM reconcile_stale_pipeline_runs('2100-05-01 12:00:00+00', NULL)
+     WHERE pipeline_run_id = 92001;
 
     IF reconciled_count <> 1 THEN
-        RAISE EXCEPTION 'Expected one stale run to be reconciled, found %', reconciled_count;
+        RAISE EXCEPTION 'Expected the stale fixture run to be reconciled once, found %', reconciled_count;
     END IF;
 
     SELECT * INTO reconciled
@@ -84,10 +90,11 @@ BEGIN
     END IF;
 
     SELECT count(*) INTO reconciled_count
-      FROM reconcile_stale_pipeline_runs('2100-05-01 12:00:00+00', NULL);
+      FROM reconcile_stale_pipeline_runs('2100-05-01 12:00:00+00', NULL)
+     WHERE pipeline_run_id IN (92001, 92002, 92003, 92004);
 
     IF reconciled_count <> 0 THEN
-        RAISE EXCEPTION 'Reconciliation is not idempotent; found % rows on the second call', reconciled_count;
+        RAISE EXCEPTION 'Fixture reconciliation is not idempotent; found % rows on the second call', reconciled_count;
     END IF;
 
     BEGIN
