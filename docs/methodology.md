@@ -39,7 +39,7 @@ O collector não converte idioma ausente em `pt`. Ele mantém `api_language` com
 
 O idioma-alvo global vem de `LANGUAGE_GATE_TARGET_LANGUAGE`, inicialmente `pt`; ele nunca é derivado do idioma declarado pelo próprio vídeo. Quando a API declara `pt` ou uma variante `pt-*`, o vídeo fica `eligible`; um idioma-base diferente fica `rejected`. Quando a API não declara idioma, o estado inicial é `uncertain` e o workflow 01B avalia apenas título e descrição com JSON estruturado. A confiança mínima inicial é 0,80. Resultados inconclusivos ou falhas entram em backoff de 24 horas, até três tentativas automáticas; uma revisão manual pode registrar uma decisão explícita sem apagar os metadados brutos.
 
-O classificador, o Trend Engine, a observabilidade analítica e a validação da Fase 12 usam somente vídeos `eligible`. Linhas derivadas históricas não são apagadas; as novas agregações usam versões `v2-language-eligible`, mantendo rastreabilidade do período anterior.
+O classificador, o Trend Engine, a observabilidade analítica e a validação da Fase 12 usam somente vídeos `eligible`. Para impedir que o mesmo idioma seja dividido entre coortes `pt`, `pt-br` e `pt-pt`, `videos.language` é canônico como `pt`; a variante detectada continua disponível em `detected_language`, e a região `BR` não é inferida nem sobrescrita por essa regra. Linhas derivadas históricas não são apagadas; as novas agregações usam versões `v3-language-canonical`, mantendo rastreabilidade dos períodos anteriores.
 
 ## Detalhes e candidatos a Shorts
 
@@ -185,7 +185,7 @@ A auditoria final encontrou 13 recomendações persistidas, sendo 12 preservadas
 
 O Report Engine não chama um modelo de linguagem. JSON e Markdown são renderizados pela função `build_trendlens_report` a partir do bucket mais recente do Trend Engine, dos rankings do Opportunity Engine e das recomendações estruturadas que usam a versão de prompt atualmente configurada. Isso mantém cada número ligado diretamente ao PostgreSQL e evita propagar recomendações históricas já substituídas.
 
-O relatório usa um único contexto comparável. Plataforma e região vêm das configurações; para idioma, a função prefere a correspondência exata e, quando ela não possui estatísticas, escolhe a variante regional com maior cobertura, como `pt-BR` para `pt`. O JSON registra tanto o idioma solicitado quanto o selecionado.
+O relatório usa um único contexto comparável. Plataforma e região vêm das configurações; para idioma, as novas agregações usam a correspondência canônica `pt`. A compatibilidade com variantes permanece na função de seleção para consultar agregações históricas anteriores à normalização. O JSON registra tanto o idioma solicitado quanto o selecionado.
 
 Top Opportunities ordena categorias pelo Opportunity Score. Viral but Risky exige simultaneamente a mediana mínima de Virality Score e a mediana máxima de Monetization Score configuradas, expondo também a diferença entre os índices. Tendências emergentes incluem somente grupos `rising`, cuja direção já exige amostra mínima nas janelas atual e anterior. Se uma seção estiver vazia, o Markdown explica a ausência em vez de inventar resultados.
 

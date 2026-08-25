@@ -64,7 +64,11 @@ Queries associadas a categorias. `sample_group` diferencia amostras `recent` e `
 
 Armazena metadados públicos normalizados. A combinação `platform + external_id` é única. `short_confidence` expressa uma estimativa e não uma afirmação de que o vídeo é oficialmente um Short.
 
-O idioma possui campos com responsabilidades distintas: `api_language` preserva o valor explícito da plataforma; `target_language` representa a configuração da análise; `detected_language`, `language_confidence` e `language_detection_source` registram a avaliação; `language_eligibility` controla a passagem para o pipeline analítico. Tentativas e `language_retry_after` formam uma fila operacional sem apagar vídeos rejeitados.
+O idioma possui campos com responsabilidades distintas: `api_language` preserva o valor explícito da plataforma; `target_language` representa a configuração da análise; `detected_language`, `language_confidence` e `language_detection_source` registram a avaliação; `language_eligibility` controla a passagem para o pipeline analítico. `language` é a dimensão analítica canônica: qualquer variante portuguesa é armazenada como `pt`, enquanto `pt-br` ou `pt-pt` permanece nos campos observados. `region` continua independente e representa o mercado da coleta. Tentativas e `language_retry_after` formam uma fila operacional sem apagar vídeos rejeitados.
+
+### `canonicalize_analytical_language`
+
+Normaliza códigos de idioma e reduz `pt`, `pt-br`, `pt-pt` e outras variantes `pt-*` ao código analítico `pt`. Outros idiomas apenas recebem a normalização sintática já aplicada por `normalize_language_code`. Um trigger em `videos` aplica a função em toda inserção ou alteração de `language`, inclusive collector, gate por IA e revisão manual, sem alterar `api_language`, `detected_language` ou `region`.
 
 ### `video_snapshots`
 

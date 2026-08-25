@@ -137,6 +137,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/018_analytical_language_normalization.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -182,6 +186,14 @@ Valide o gate de idioma:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/language-eligibility.sql
+```
+
+Valide a normalização analítica do português sem alterar a região:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/analytical-language-normalization.sql
 ```
 
 Valide o Metrics Engine e o Virality Score:
@@ -312,6 +324,8 @@ Após a migration `014`, uma validação real processou sete candidatos, inseriu
 ## Classificação estruturada por IA
 
 Antes da classificação temática, o gate de idioma preserva separadamente `api_language`, `target_language` e `detected_language`. Idioma explícito da API é aceito ou rejeitado por correspondência do idioma-base; metadados sem esse sinal entram em uma fila limitada para detecção conservadora por LLM. O mercado `BR` orienta a coleta, mas não é usado como prova de que o vídeo é brasileiro ou de que sua variante é `pt-BR`.
+
+Para comparações analíticas, `videos.language` usa o código-base canônico `pt`. As variantes observadas `pt-br` e `pt-pt` continuam preservadas em `api_language` e `detected_language`, e `region=BR` permanece a dimensão de mercado da coleta. A migration `018` corrige o histórico, protege novas gravações por trigger e inicia as versões analíticas `v3-language-canonical` sem apagar agregações anteriores.
 
 O classificador seleciona no máximo 30 vídeos ainda não processados e com `language_eligibility` no estado `eligible` por execução horária, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
 
