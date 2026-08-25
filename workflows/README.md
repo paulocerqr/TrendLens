@@ -89,11 +89,13 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
 
-O workflow `86iKeeCFXiiX3fki` está ativo com a versão anterior. O draft de confiabilidade está salvo e permanece sem publicação até a aplicação da migration `017` no PostgreSQL do servidor; a exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `006e083f-ccbb-4756-b4de-f1c0d5191b5e`. A exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
 Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. A migration `017` acrescenta estado durável por vídeo e converte falhas históricas ainda não classificadas para `retry_wait` ou `manual_review`. O workflow continua com 13 nodes.
+
+A execução manual `703`, já na versão da migration `017`, selecionou 30 candidatos, criou 27 classificações e registrou três falhas de parser ou modelo como primeira tentativa. Cada falha recebeu backoff de seis horas; o fechamento do `pipeline_run 648` mostrou três itens em `retry_wait`, um item histórico em `manual_review` e nenhum encaminhamento manual prematuro. A execução do n8n terminou com status técnico `success`, enquanto o pipeline registrou corretamente `partial`.
 
 Consulte e resolva a fila manual pelo PostgreSQL:
 
