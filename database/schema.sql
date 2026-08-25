@@ -4246,6 +4246,55 @@ COMMIT;
 
 BEGIN;
 
+CREATE OR REPLACE FUNCTION canonicalize_analytical_language(p_language TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+WITH normalized AS (
+    SELECT normalize_language_code(p_language) AS language_code
+)
+SELECT CASE
+    WHEN language_code IS NULL THEN NULL
+    WHEN split_part(language_code, '-', 1) = 'pt' THEN 'pt'
+    ELSE language_code
+END
+FROM normalized;
+$$;
+
+CREATE OR REPLACE FUNCTION canonicalize_video_analytical_language()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.language := canonicalize_analytical_language(NEW.language);
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS videos_canonicalize_analytical_language ON videos;
+
+CREATE TRIGGER videos_canonicalize_analytical_language
+BEFORE INSERT OR UPDATE OF language ON videos
+FOR EACH ROW
+EXECUTE FUNCTION canonicalize_video_analytical_language();
+
+ALTER TABLE videos
+    DROP CONSTRAINT IF EXISTS videos_portuguese_language_canonical_check;
+
+ALTER TABLE videos
+    ADD CONSTRAINT videos_portuguese_language_canonical_check
+    CHECK (
+        language IS NULL
+        OR split_part(normalize_language_code(language), '-', 1) <> 'pt'
+        OR language = 'pt'
+    );
+
+COMMIT;
+
+BEGIN;
+
 INSERT INTO settings (key, value, description)
 VALUES
     ('CLASSIFIER_MAX_ATTEMPTS', '3'::JSONB, 'Quantidade máxima de falhas terminais automáticas antes de encaminhar o vídeo para revisão manual.'),
