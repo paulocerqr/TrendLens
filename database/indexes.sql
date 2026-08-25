@@ -58,6 +58,19 @@ CREATE INDEX IF NOT EXISTS video_classifications_dimensions_idx
 CREATE INDEX IF NOT EXISTS video_classifications_classified_at_idx
     ON video_classifications (classified_at DESC);
 
+CREATE INDEX IF NOT EXISTS video_classification_processing_retry_idx
+    ON video_classification_processing_state (retry_after, video_id)
+    WHERE status = 'retry_wait';
+
+CREATE INDEX IF NOT EXISTS video_classification_processing_review_idx
+    ON video_classification_processing_state (last_failed_at, video_id)
+    WHERE status = 'manual_review';
+
+CREATE INDEX IF NOT EXISTS pipeline_errors_classifier_video_idx
+    ON pipeline_errors ((metadata ->> 'video_id'), occurred_at DESC)
+    WHERE workflow = '03 - TrendLens - AI Content Classifier'
+      AND error_type IN ('ai_classification_error', 'classification_persistence_error');
+
 CREATE INDEX IF NOT EXISTS video_metrics_video_calculated_idx
     ON video_metrics (video_id, calculated_at DESC);
 
