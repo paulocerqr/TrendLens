@@ -2,6 +2,8 @@
 
 BEGIN;
 
+SET LOCAL TIME ZONE 'UTC';
+
 UPDATE settings SET value = '"24 hours"'::JSONB WHERE key = 'OBSERVABILITY_PERIOD';
 UPDATE settings SET value = '"observability-test-v1"'::JSONB WHERE key = 'OBSERVABILITY_VERSION';
 UPDATE settings SET value = '60'::JSONB WHERE key = 'OBSERVABILITY_STALE_RUN_MINUTES';

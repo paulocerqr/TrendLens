@@ -2,6 +2,8 @@
 
 BEGIN;
 
+SET LOCAL TIME ZONE 'UTC';
+
 UPDATE settings SET value = '"7 days"'::JSONB WHERE key = 'VALIDATION_PERIOD';
 UPDATE settings SET value = '"validation-test-v1"'::JSONB WHERE key = 'VALIDATION_VERSION';
 UPDATE settings SET value = '3'::JSONB WHERE key = 'VALIDATION_MIN_OBSERVATION_DAYS';

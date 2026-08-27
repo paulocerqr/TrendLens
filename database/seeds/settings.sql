@@ -91,7 +91,7 @@ VALUES
     ('REPORT_MONETIZATION_RISK_MAX', '5'::JSONB, 'Mediana máxima de Monetization Score para a seção Viral but Risky.'),
     ('REPORT_TIMEZONE', '"America/Sao_Paulo"'::JSONB, 'Fuso horário usado para apresentar datas no relatório Markdown.'),
     ('OBSERVABILITY_PERIOD', '"24 hours"'::JSONB, 'Janela fechada usada pelos relatórios de observabilidade.'),
-    ('OBSERVABILITY_VERSION', '"v2-language-eligible"'::JSONB, 'Versão da observabilidade com o gate de idioma e indicadores analíticos filtrados.'),
+    ('OBSERVABILITY_VERSION', '"v3-recovery-aware"'::JSONB, 'Versão da observabilidade com reconciliação de runs obsoletos e saúde baseada no estado terminal mais recente.'),
     ('OBSERVABILITY_STALE_RUN_MINUTES', '120'::JSONB, 'Tempo máximo, em minutos, antes de uma execução running ser considerada interrompida e elegível para reconciliação.'),
     ('OBSERVABILITY_HIGH_VIRALITY_THRESHOLD', '7'::JSONB, 'Virality Score mínimo para contabilizar vídeos de alta viralidade.'),
     ('OBSERVABILITY_HIGH_OPPORTUNITY_THRESHOLD', '7'::JSONB, 'Opportunity Score mínimo para destacar categorias.'),
