@@ -153,6 +153,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/022_recovery_aware_observability.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -248,6 +252,14 @@ docker compose exec -T postgres sh -c \
   < tests/sql/stale-pipeline-runs.sql
 ```
 
+Valide a recuperação da saúde operacional após uma execução bem-sucedida:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/recovery-aware-observability.sql
+```
+
 Valide a configuração dos modelos NVIDIA:
 
 ```bash
@@ -301,11 +313,11 @@ O artefato versionável está em [workflows/00-postgresql-smoke-test.json](workf
 
 O collector exportado, sem associações de credenciais, está em [workflows/01-youtube-data-collector.json](workflows/01-youtube-data-collector.json). O workflow do deployment original possui ID `yXv20DXsRyIyoat2` e está publicado e ativo, com coleta a cada três horas no minuto 5 em `America/Sao_Paulo`; a exportação versionável permanece inativa.
 
-O Content Language Gate exportado está em [workflows/01b-content-language-gate.json](workflows/01b-content-language-gate.json). Ele usa metadados públicos para avaliar somente vídeos sem idioma confiável, compara o idioma detectado com o alvo global `pt`, aplica confiança mínima configurável e mantém resultados `uncertain` ou `rejected` fora do classificador. Após a migration corretiva `016`, a execução manual 485 processou 30 vídeos sem falhas: 13 elegíveis exclusivamente em português, sete rejeitados e dez incertos; todos usaram `target_language=pt`. O workflow do deployment original possui ID `1cjqpTWdMiaNzNgU`, usa as credenciais `TrendLens PostgreSQL` e NVIDIA e está publicado e ativo, com execução horária no minuto 15, entre o collector do minuto 5 e o classificador do minuto 30.
+O Content Language Gate exportado está em [workflows/01b-content-language-gate.json](workflows/01b-content-language-gate.json). Ele usa metadados públicos para avaliar somente vídeos sem idioma confiável, compara o idioma detectado com o alvo global `pt`, aplica confiança mínima configurável e mantém resultados `uncertain` ou `rejected` fora do classificador. A chamada ao Nemotron usa o endpoint compatível com OpenAI da NVIDIA, JSON obrigatório e `enable_thinking=false`; a resposta é normalizada e validada antes da persistência. Erros HTTP, JSON inválido e falhas de persistência retornam ao loop, permitindo que o node finalizador sempre seja alcançado. O workflow do deployment original possui ID `1cjqpTWdMiaNzNgU`, está publicado e ativo na versão `496fc60f-279b-43fc-88a2-5ce05fc7101c`.
 
 O Snapshot Tracker exportado, também sem associações de credenciais, está em [workflows/02-video-snapshot-tracker.json](workflows/02-video-snapshot-tracker.json). Depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL e a credencial OAuth2 do YouTube ao node HTTP Request. O workflow do deployment original possui ID `LTjMbH3UGW994lCA`, está publicado e ativo e usa backoff auditável para vídeos omitidos por `videos.list`.
 
-O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e a credencial NVIDIA aos dois nodes de modelo. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, processa até 30 vídeos por hora e possui timeout de 55 minutos. A versão `006e083f-ccbb-4756-b4de-f1c0d5191b5e` está publicada e ativa com a confiabilidade da migration `017`: falhas terminais aguardam 6h e 12h, e a terceira falha sai da fila automática para revisão manual.
+O AI Content Classifier exportado, sem associações de credenciais, está em [workflows/03-ai-content-classifier.json](workflows/03-ai-content-classifier.json). Depois da importação, associe `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request. O workflow do deployment original possui ID `86iKeeCFXiiX3fki`, processa até 30 vídeos por hora e possui timeout de 55 minutos. A versão `1ef375cf-2c22-4ced-98ec-5991b7342bb3` está publicada e ativa com JSON estrito, normalização determinística dos campos livres e a confiabilidade da migration `017`.
 
 O Metrics Engine exportado está em [workflows/04-metrics-engine.json](workflows/04-metrics-engine.json). A exportação permanece inativa e não contém credenciais; depois da importação, associe `TrendLens PostgreSQL` aos quatro nodes PostgreSQL. O workflow do deployment original possui ID `zf3Wwl1aUINxrGEy` e foi publicado e ativado após validação explícita do usuário.
 
@@ -363,7 +375,7 @@ Antes da classificação temática, o gate de idioma preserva separadamente `api
 
 Para comparações analíticas, `videos.language` usa o código-base canônico `pt`. As variantes observadas `pt-br` e `pt-pt` continuam preservadas em `api_language` e `detected_language`, e `region=BR` permanece a dimensão de mercado da coleta. A migration `018` corrige o histórico, protege novas gravações por trigger e inicia as versões analíticas `v3-language-canonical` sem apagar agregações anteriores.
 
-O classificador seleciona no máximo 30 vídeos ainda não processados e com `language_eligibility` no estado `eligible` por execução horária, envia título, descrição truncada e contexto público ao NVIDIA Nemotron e exige uma resposta compatível com JSON Schema. O parser possui uma tentativa automática de correção; falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
+O classificador seleciona no máximo 30 vídeos ainda não processados e com `language_eligibility` no estado `eligible` por execução horária. Ele envia título, descrição truncada e contexto público ao endpoint compatível com OpenAI da NVIDIA, exige JSON, desativa o modo de raciocínio do Nemotron e valida enums e scores localmente. Campos textuais livres são canonicamente convertidos para `snake_case`. Falhas remanescentes são sanitizadas e registradas sem bloquear os próximos itens. O timeout de 55 minutos encerra um lote excepcionalmente lento antes do próximo gatilho horário.
 
 Cada classificação persiste categoria, tópico, tipo de conteúdo, formato, hook, origem, estilo de apresentação, confiança e três scores entre 0 e 1. Originalidade, risco autoral e risco de conteúdo reutilizado são estimativas heurísticas, não decisões jurídicas, afirmações de violação ou garantias de monetização. Modelo e versão do prompt são gravados em cada linha para auditoria.
 
@@ -383,6 +395,8 @@ A validação também confirmou a idempotência entre execuções concorrentes: 
 Após a migration `014`, a validação de capacidade selecionou e persistiu 30 classificações, sem falhas ou conflitos, em 218,674 segundos. A média observada de 7,289 segundos por vídeo mantém ampla margem diante do intervalo horário e do timeout de 55 minutos. A nova versão está publicada e ativa.
 
 Após a migration `017`, a execução manual `703` criou 27 classificações entre 30 candidatos. As três falhas terminais foram registradas como primeira tentativa, receberam `retry_wait` por seis horas e não interromperam o lote. O `pipeline_run 648` terminou como `partial`, com três itens na espera automática e um item histórico em `manual_review`.
+
+Após a substituição definitiva pelo modelo `nvidia/nemotron-3-ultra-550b-a55b`, a execução real `1188` classificou um candidato em 21,456 segundos, persistiu uma classificação e alcançou o finalizador sem falhas. O Language Gate executou o mesmo contrato na execução `1190` e o Recommendation AI criou uma recomendação agregada na execução `1189`.
 
 ## Validação do Metrics Engine
 

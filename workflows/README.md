@@ -42,15 +42,16 @@ O arquivo [01b-content-language-gate.json](01b-content-language-gate.json) imple
 - fila PostgreSQL para vídeos com idioma `uncertain`;
 - aceitação direta de códigos `pt` e `pt-*` declarados pela API;
 - detecção conservadora por NVIDIA NIM quando o idioma da API estiver ausente;
-- JSON Schema fechado com idioma, confiança e fonte de evidência;
+- requisição JSON ao endpoint compatível com OpenAI da NVIDIA, com raciocínio desativado;
+- normalização e validação fechada de idioma, confiança e fonte de evidência;
 - confiança mínima, limite de tentativas e backoff configuráveis;
 - estados `eligible`, `uncertain` e `rejected`, sem excluir o vídeo bruto;
 - logs em `pipeline_runs` e `pipeline_errors`, com mensagens sanitizadas;
 - Manual Trigger e Schedule Trigger horário no minuto 5.
 
-A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
-O workflow `1cjqpTWdMiaNzNgU` foi criado e validado com 13 nodes. A execução manual 481 revelou que linhas migradas podiam carregar o idioma do próprio vídeo como alvo; a migration `016_global_language_target.sql` corrigiu 1.286 registros e tornou `LANGUAGE_GATE_TARGET_LANGUAGE=pt` a única referência automática. Após a correção, a execução manual 485 avaliou 30 vídeos em 69,376 segundos, sem falhas: 13 elegíveis exclusivamente em português, sete rejeitados e dez incertos. Todos os registros persistidos usaram `target_language=pt`, e nenhum idioma estrangeiro foi marcado como elegível. A versão `b2c5d255-04ac-4aa2-b921-0c9e97b99764` está publicada e ativa, com execução horária no minuto 15.
+O workflow `1cjqpTWdMiaNzNgU` possui 11 nodes. O fluxo de erro do HTTP, da validação e da persistência retorna ao loop, inclusive quando o provedor falha, garantindo a passagem pelo finalizador. A execução real `1190` processou um candidato em 16,77 segundos, finalizou o `pipeline_run 1128` com zero falhas e confirmou o JSON do modelo `nvidia/nemotron-3-ultra-550b-a55b`. A versão `496fc60f-279b-43fc-88a2-5ce05fc7101c` está publicada e ativa, com execução horária no minuto 15.
 
 ## 02 - TrendLens - Video Snapshot Tracker
 
@@ -78,7 +79,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - seleção configurável de vídeos do YouTube ainda não classificados e com idioma elegível;
 - envio somente dos metadados necessários, com descrição truncada;
 - classificação com NVIDIA Nemotron e prompt versionado;
-- saída JSON validada por schema e uma tentativa automática de correção;
+- saída JSON extraída e validada por enums, scores e limites;
 - persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
 - estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
 - backoff persistente de 6h e 12h para falhas terminais;
@@ -87,15 +88,17 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - lote configurável de até 30 vídeos por execução;
 - Manual Trigger e Schedule Trigger de execução a cada hora, com timeout de 55 minutos.
 
-A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
-O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `006e083f-ccbb-4756-b4de-f1c0d5191b5e`. A exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `1ef375cf-2c22-4ced-98ec-5991b7342bb3`. A exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
-Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. A migration `017` acrescenta estado durável por vídeo e converte falhas históricas ainda não classificadas para `retry_wait` ou `manual_review`. O workflow continua com 13 nodes.
+Após a migration `014`, uma nova execução integrada classificou 30 de 30 candidatos, sem falhas ou conflitos, em 218,674 segundos, com média de 7,289 segundos por vídeo. A migration `017` acrescenta estado durável por vídeo e converte falhas históricas ainda não classificadas para `retry_wait` ou `manual_review`.
 
 A execução manual `703`, já na versão da migration `017`, selecionou 30 candidatos, criou 27 classificações e registrou três falhas de parser ou modelo como primeira tentativa. Cada falha recebeu backoff de seis horas; o fechamento do `pipeline_run 648` mostrou três itens em `retry_wait`, um item histórico em `manual_review` e nenhum encaminhamento manual prematuro. A execução do n8n terminou com status técnico `success`, enquanto o pipeline registrou corretamente `partial`.
+
+A substituição do parser nativo por HTTP Request e validação determinística eliminou a interferência do conteúdo de raciocínio. Depois de reforçar enums e normalizar campos livres para `snake_case`, a execução real `1188` classificou e persistiu um candidato em 21,456 segundos, com zero falhas e passagem pelo finalizador. O workflow final possui 11 nodes.
 
 Consulte e resolva a fila manual pelo PostgreSQL:
 
@@ -190,16 +193,16 @@ O arquivo [08-recommendation-engine.json](08-recommendation-engine.json) impleme
 - contexto restrito a estatísticas e padrões agregados, sem vídeos individuais;
 - geração com NVIDIA Nemotron e prompt versionado;
 - síntese, formatos, hooks, riscos e observações de monetização acionáveis;
-- validação por JSON Schema e uma tentativa automática de correção;
+- validação local de campos obrigatórios, tamanhos, unicidade e limites;
 - persistência dos scores originais, versões e hash da evidência;
 - tratamento de conflitos concorrentes, retries e erros sanitizados;
 - Manual Trigger e Schedule Trigger a cada seis horas, no minuto 50.
 
-A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` aos dois nodes de modelo.
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
 A primeira execução integrada no workflow `wtOD6YTBpRHsHawO` selecionou cinco categorias e criou cinco recomendações, sem falhas. Uma execução concorrente criou mais duas e ignorou três conflitos, confirmando a idempotência da persistência. O fluxo definitivo criou outras cinco recomendações; depois, uma validação limitada criou uma recomendação com o prompt semântico reforçado `v2`.
 
-A auditoria final encontrou 13 recomendações válidas, zero campos de vídeo individual, zero violações de score ou arrays e 13 candidatos ainda pendentes para o prompt atual. O limite de cinco categorias foi restaurado e o workflow temporário foi arquivado. O workflow final possui 13 nodes, permanece inativo e não publicado.
+A auditoria final encontrou 13 recomendações válidas, zero campos de vídeo individual e zero violações de score ou arrays. Com o novo endpoint, a execução real `1189` criou uma recomendação em 34,696 segundos, sem falhas, e finalizou o `pipeline_run 1127`. O limite de categorias foi restaurado; o workflow final possui 11 nodes e está publicado e ativo na versão `ec118010-e9fa-4590-8752-ae4616d1b15b`.
 
 ## 09 - TrendLens - Report
 
@@ -234,14 +237,16 @@ O arquivo [10-observability.json](10-observability.json) implementa:
 - distribuição atual de vídeos por categoria;
 - vídeos distintos de alta viralidade e categorias de alta oportunidade;
 - erros recentes sem mensagem nem metadata;
+- reconciliação de runs `running` obsoletos antes da consulta;
+- saúde recovery-aware que preserva falhas históricas sem manter falso crítico após recuperação;
 - persistência JSON idempotente por período, versão e hash;
 - Manual Trigger e Schedule Trigger a cada hora, no minuto 5.
 
-A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos quatro nodes PostgreSQL.
+A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL.
 
-A execução integrada final no workflow `J4xto6VE3UahmSmo` analisou 69 runs, 21 eventos de erro e dois retries na janela de 24 horas. Ela contabilizou 25 classificações, 227 snapshots e 31 vídeos distintos de alta viralidade. O estado ficou `critical` por falhas do Snapshot Tracker; seis workflows ficaram saudáveis, Recommendation AI ficou degradado e o collector ficou sem execução na janela.
+A execução final `1204` reconciliou mais um run obsoleto, analisou 220 runs, preservou 558 eventos de erro e 902 retries históricos e confirmou zero workflows críticos. O estado geral ficou `degraded`, com quatro workflows degradados, cinco saudáveis e um sem execução na janela. O hash retornado e o `source_hash` interno do JSON coincidiram em `0970497ff9e254a66d75d2384840086b`.
 
-O bootstrap temporário da migration foi removido. O workflow final possui seis nodes, permanece inativo e não publicado.
+O workflow final possui sete nodes e está publicado e ativo na versão `5969fe92-abed-4ab9-a2b8-b31bb7bee55a`; a exportação versionável permanece inativa.
 
 ## 11 - TrendLens - Phase 12 Validation
 

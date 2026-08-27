@@ -12,7 +12,7 @@
 - O backoff do Snapshot Tracker reduz chamadas repetidas para vídeos omitidos, mas não distingue automaticamente remoção, privacidade, bloqueio regional ou indisponibilidade transitória. O vídeo volta a ser testado após `retry_after` enquanto permanecer na janela ativa.
 - Execuções simultâneas do Snapshot Tracker não são coordenadas por um lock distribuído no MVP. A operação é idempotente para o mesmo vídeo e instante de execução, mas dois runs iniciados em instantes diferentes podem coletar observações muito próximas.
 - O AI Content Classifier processa até 30 vídeos por hora e tem timeout de 55 minutos para não atravessar o próximo ciclo. Uma interrupção externa pode impedir o node finalizador de executar; nesses casos, `reconcile_stale_pipeline_runs` encerra o registro como `cancelled` após o limite configurado, com término explicitamente marcado como inferido.
-- Latência e disponibilidade do provedor NVIDIA podem produzir timeouts. O classificador limita retries e registra a falha sem uma fila própria; o gate de idioma possui tentativas e backoff por vídeo porque sua decisão bloqueia a entrada analítica.
+- Latência e disponibilidade do provedor NVIDIA podem produzir timeouts ou respostas de sobrecarga. Os três workflows limitam retries e registram falhas terminais; o classificador e o gate de idioma também mantêm estado durável e backoff por vídeo.
 - A detecção de idioma usa somente título e descrição quando a API não fornece um código. Texto curto, nomes próprios, títulos multilíngues ou descrições vazias podem permanecer `uncertain` ou ser classificados incorretamente.
 - `regionCode=BR`, a língua portuguesa e um código `pt-BR` não comprovam que o vídeo foi produzido no Brasil. O TrendLens trata região como mercado-alvo e compara somente o idioma-base para elegibilidade.
 - Vídeos rejeitados continuam armazenados e seus snapshots históricos não são apagados. Linhas derivadas criadas antes da migration permanecem para auditoria, mas novas seleções, agregações e validações as excluem por elegibilidade e versão.
@@ -36,7 +36,7 @@
 - `retry_count` contabiliza retries associados a erros terminais. O n8n não expõe ao workflow retries internos que terminaram com sucesso, portanto eles não podem ser incluídos.
 - O estado `unknown` significa ausência de execução dentro da janela, não falha. Isso é esperado para workflows inativos ou com frequência maior que a janela.
 - Métricas operacionais podem ser revisadas por atualizações tardias das tabelas analíticas. Nesse caso, uma nova fonte produz outro snapshot para a mesma janela sem sobrescrever o anterior.
-- A saúde `critical` indica falhas observadas ou execução travada; não determina automaticamente a causa nem corrige o workflow afetado.
+- A saúde `critical` indica execução travada ou falha ainda vigente no run mais recente. Falhas históricas continuam nos contadores e deixam a etapa `degraded` após uma execução posterior bem-sucedida; isso não apaga o incidente nem determina automaticamente sua causa.
 - A Fase 11 persiste JSON no PostgreSQL e o devolve na execução do n8n. Não há dashboard, endpoint público nem canal de notificação.
 - A validação de snapshots sinaliza lacunas de cadência e reduções de contadores, mas não determina sozinha a causa. Likes e comentários podem diminuir por ações legítimas da plataforma.
 - A correlação entre componentes e scores é descritiva e parcialmente mecânica, pois os componentes participam da própria fórmula. Ela serve para detectar possível dominância, não para justificar causalidade ou um novo peso isoladamente.

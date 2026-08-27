@@ -202,6 +202,10 @@ Função SQL estável que consolida `pipeline_runs`, `pipeline_errors` e indicad
 
 A função considera somente a métrica mais recente de cada vídeo para evitar contagem duplicada no indicador de alta viralidade. Eventos recentes não incluem mensagem nem metadata do erro.
 
+### `build_pipeline_observability_recovery_aware`
+
+Camada estável sobre o relatório base que recalcula a saúde sem apagar o histórico. Um run obsoleto ou o último run em `failed` mantém o workflow `critical`; falhas, execuções parciais e erros anteriores permanecem como `degraded` quando o último run já concluiu com sucesso. A função recalcula resumo, estado global e hash da fonte sob o contrato `v3-recovery-aware`.
+
 ## Validação
 
 ### `classification_validation_reviews`

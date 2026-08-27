@@ -203,10 +203,10 @@ O contrato final foi versionado como `v2`. O relatório foi persistido em JSON e
 
 A observabilidade usa `pipeline_runs` como fonte de status, contadores e duração, e `pipeline_errors` como fonte de eventos terminais e retries. A função `build_pipeline_observability` avalia dez workflows produtivos, incluindo o gate de idioma, em uma janela configurável de 24 horas com limite superior exclusivo no início da hora corrente. Antes de interpretar runs antigos interrompidos, `reconcile_stale_pipeline_runs` pode encerrá-los como `cancelled` usando o mesmo limite configurado; a correção não inventa falhas nem altera contadores.
 
-Cada workflow recebe um estado derivado:
+Cada workflow recebe um estado derivado pela política `latest_terminal_status_with_window_history`:
 
-- `critical`: existe execução falha no período ou execução `running` acima do limite configurado;
-- `degraded`: existe execução parcial ou evento de erro sem condição crítica;
+- `critical`: existe execução `running` acima do limite configurado ou o run mais recente terminou em `failed`;
+- `degraded`: existem falhas, execuções parciais ou eventos de erro no período, mas o run mais recente já não está falho;
 - `healthy`: houve execução no período sem falha ou erro;
 - `unknown`: não houve execução dentro da janela.
 
@@ -218,11 +218,11 @@ Os indicadores operacionais distinguem vídeos coletados, novos e duplicados, sn
 
 Retries representam as novas tentativas registradas quando um erro terminal persiste após `maxTries = 3`. Tentativas internas que terminam com sucesso não são expostas pelo n8n e, portanto, não entram no contador. A lista de erros recentes omite deliberadamente `error_message` e `metadata`.
 
-## Primeira execução da observabilidade
+## Validação da observabilidade recovery-aware
 
-A execução final do workflow analisou 69 runs na janela fechada, com 48 sucessos, três execuções parciais, 18 falhas, 21 eventos de erro e dois retries registrados. Foram observadas 25 classificações, 227 snapshots e 31 vídeos distintos cuja métrica mais recente atingia o limite de alta viralidade. A saúde geral ficou `critical` porque o Snapshot Tracker acumulou falhas de itens omitidos pela API; Recommendation AI ficou `degraded` e seis workflows ficaram saudáveis.
+A execução final `1204` reconciliou um run obsoleto antes da leitura e produziu um snapshot com 220 runs, 558 eventos de erro e 902 retries históricos. O estado geral ficou `degraded`: nenhum dos dez workflows ficou crítico, quatro ficaram degradados, cinco saudáveis e um sem execução na janela. Classifier, Language Gate e Recommendation AI conservaram seus erros anteriores, mas seus últimos runs bem-sucedidos foram reconhecidos como recuperação. O hash retornado pela função coincidiu com o `source_hash` incorporado no JSON.
 
-O snapshot foi persistido sem falha, o bootstrap da migration foi removido e o workflow final executou em 0,102 segundo. Ele possui seis nodes, permanece inativo e não publicado.
+O workflow final possui sete nodes e está publicado e ativo na versão `5969fe92-abed-4ab9-a2b8-b31bb7bee55a`.
 
 ## Validação da Fase 12
 
