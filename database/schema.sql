@@ -2415,7 +2415,7 @@ WITH config AS (
         GREATEST(1, LEAST(20, COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'RECOMMENDATION_CONTEXT_LIMIT'), 5))) AS context_limit,
         GREATEST(1, COALESCE((SELECT (value #>> '{}')::INTEGER FROM settings WHERE key = 'MIN_SAMPLE_SIZE'), 30)) AS minimum_sample_size,
         GREATEST(0::NUMERIC, LEAST(10::NUMERIC, COALESCE((SELECT (value #>> '{}')::NUMERIC FROM settings WHERE key = 'RECOMMENDATION_MIN_OPPORTUNITY_SCORE'), 0))) AS minimum_score,
-        COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'RECOMMENDATION_MODEL'), ''), NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'LLM_MODEL'), ''), 'nvidia/llama-3.3-nemotron-super-49b-v1') AS recommendation_model,
+        COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'RECOMMENDATION_MODEL'), ''), NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'LLM_MODEL'), ''), 'nvidia/nemotron-3-ultra-550b-a55b') AS recommendation_model,
         COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'RECOMMENDATION_PROMPT_VERSION'), ''), 'v2') AS prompt_version,
         COALESCE(NULLIF((SELECT value #>> '{}' FROM settings WHERE key = 'TREND_CALCULATION_VERSION'), ''), 'v1') AS trend_version
 ), latest_period AS (
