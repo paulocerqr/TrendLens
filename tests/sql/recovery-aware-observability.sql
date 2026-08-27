@@ -6,6 +6,12 @@ UPDATE settings
    SET value = '"v3-recovery-aware"'::JSONB
  WHERE key = 'OBSERVABILITY_VERSION';
 
+UPDATE pipeline_runs
+   SET status = 'cancelled',
+       finished_at = COALESCE(finished_at, started_at),
+       duration_seconds = COALESCE(duration_seconds, 0)
+ WHERE status = 'running';
+
 INSERT INTO pipeline_runs (
     id, workflow, started_at, finished_at, status,
     items_received, items_processed, items_skipped, items_failed,
@@ -21,6 +27,51 @@ VALUES
         92202, '03 - TrendLens - AI Content Classifier',
         '2100-06-01 10:00:00+00', '2100-06-01 10:01:00+00', 'success',
         1, 1, 0, 0, 1, 0, 60, '{"fixture":"recovered"}'::JSONB
+    ),
+    (
+        92301, '01 - TrendLens - YouTube Data Collector',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 1, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92302, '02 - TrendLens - Video Snapshot Tracker',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 1, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92304, '04 - TrendLens - Metrics Engine & Virality Score',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92305, '05 - TrendLens - Trend Engine',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92306, '06 - TrendLens - Monetization Engine',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92307, '07 - TrendLens - Opportunity Engine',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92308, '08 - TrendLens - Recommendation AI',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92309, '09 - TrendLens - Report',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
+    ),
+    (
+        92310, '01B - TrendLens - Content Language Gate',
+        '2100-06-01 11:00:00+00', '2100-06-01 11:01:00+00', 'success',
+        1, 1, 0, 0, 1, 0, 60, '{"fixture":"latest_success"}'::JSONB
     );
 
 DO $$
@@ -85,4 +136,3 @@ $$;
 ROLLBACK;
 
 SELECT 'Recovery-aware observability SQL validation passed' AS result;
-
