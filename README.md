@@ -149,6 +149,10 @@ docker compose exec -T postgres sh -c \
 
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < database/migrations/021_nemotron_3_ultra.sql
+
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < database/seeds/settings.sql
 
 docker compose exec -T postgres sh -c \
@@ -242,6 +246,14 @@ Valide a reconciliação auditável de execuções obsoletas:
 docker compose exec -T postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < tests/sql/stale-pipeline-runs.sql
+```
+
+Valide a configuração dos modelos NVIDIA:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < tests/sql/nemotron-model-configuration.sql
 ```
 
 Valide a Fase 12:
