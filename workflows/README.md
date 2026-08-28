@@ -80,6 +80,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - envio somente dos metadados necessários, com descrição truncada;
 - classificação com NVIDIA Nemotron e prompt versionado;
 - saída JSON extraída e validada por enums, scores e limites;
+- conversão determinística de scores percentuais entre `1–100` para a escala analítica `0–1`;
 - persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
 - estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
 - backoff persistente de 6h e 12h para falhas terminais;
@@ -90,7 +91,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
-O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `1ef375cf-2c22-4ced-98ec-5991b7342bb3`. A exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `fd51fd61-0455-4f01-a782-56df3cf6d805`. A exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
@@ -99,6 +100,8 @@ Após a migration `014`, uma nova execução integrada classificou 30 de 30 cand
 A execução manual `703`, já na versão da migration `017`, selecionou 30 candidatos, criou 27 classificações e registrou três falhas de parser ou modelo como primeira tentativa. Cada falha recebeu backoff de seis horas; o fechamento do `pipeline_run 648` mostrou três itens em `retry_wait`, um item histórico em `manual_review` e nenhum encaminhamento manual prematuro. A execução do n8n terminou com status técnico `success`, enquanto o pipeline registrou corretamente `partial`.
 
 A substituição do parser nativo por HTTP Request e validação determinística eliminou a interferência do conteúdo de raciocínio. Depois de reforçar enums e normalizar campos livres para `snake_case`, a execução real `1188` classificou e persistiu um candidato em 21,456 segundos, com zero falhas e passagem pelo finalizador. O workflow final possui 11 nodes.
+
+A execução real `1427` validou a normalização percentual: dez candidatos produziram dez classificações, sem falhas, em 136,626 segundos. Scores já contidos em `0–1` foram preservados; valores maiores que `1` e até `100` foram divididos por `100`; valores negativos, não numéricos ou acima de `100` continuaram inválidos.
 
 Consulte e resolva a fila manual pelo PostgreSQL:
 
