@@ -79,6 +79,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - seleção configurável de vídeos do YouTube ainda não classificados e com idioma elegível;
 - envio somente dos metadados necessários, com descrição truncada;
 - classificação com NVIDIA Nemotron e prompt versionado;
+- instrução explícita para os quatro scores usarem somente números decimais entre `0` e `1`, sem percentuais ou escala `0–100`;
 - saída JSON extraída e validada por enums, scores e limites;
 - conversão determinística de scores percentuais entre `1–100` para a escala analítica `0–1`;
 - aliases de formato `quick_tutorials → tutorial` e `gameplay → clip`, preservando `gameplay` nos campos de tipo e origem;
@@ -92,7 +93,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
-O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `b75c2993-24f7-4a26-852a-a803e089722b`. A exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `2807197d-da2d-4e67-8d40-9d69ec47bee0`. A exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
@@ -105,6 +106,8 @@ A substituição do parser nativo por HTTP Request e validação determinística
 A execução real `1427` validou a normalização percentual: dez candidatos produziram dez classificações, sem falhas, em 136,626 segundos. Scores já contidos em `0–1` foram preservados; valores maiores que `1` e até `100` foram divididos por `100`; valores negativos, não numéricos ou acima de `100` continuaram inválidos.
 
 As duas respostas anteriormente rejeitadas por `format=quick_tutorials` e `format=gameplay` foram usadas como fixtures do normalizador e produziram, respectivamente, `tutorial` e `clip`. O teste manual `1430` confirmou a finalização do workflow publicado sem candidatos elegíveis naquele instante.
+
+O prompt passou a repetir a escala `0–1` tanto na instrução de sistema quanto na instrução específica do item, proibindo percentuais, inteiros na escala `0–100` e o símbolo `%`. A execução manual `1433` confirmou a finalização do workflow, mas não havia candidatos elegíveis para uma nova chamada ao modelo; a conversão defensiva no normalizador continua ativa.
 
 Consulte e resolva a fila manual pelo PostgreSQL:
 
