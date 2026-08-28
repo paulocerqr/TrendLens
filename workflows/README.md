@@ -81,6 +81,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 - classificação com NVIDIA Nemotron e prompt versionado;
 - saída JSON extraída e validada por enums, scores e limites;
 - conversão determinística de scores percentuais entre `1–100` para a escala analítica `0–1`;
+- aliases de formato `quick_tutorials → tutorial` e `gameplay → clip`, preservando `gameplay` nos campos de tipo e origem;
 - persistência tipada em `video_classifications`, sem sobrescrever classificações existentes;
 - estimativas separadas de originalidade, risco autoral e conteúdo reutilizado;
 - backoff persistente de 6h e 12h para falhas terminais;
@@ -91,7 +92,7 @@ O arquivo [03-ai-content-classifier.json](03-ai-content-classifier.json) impleme
 
 A exportação não contém associações de credenciais. Depois de importar, atribua `TrendLens PostgreSQL` aos cinco nodes PostgreSQL e uma credencial `nvidiaApi` ao node HTTP Request.
 
-O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `fd51fd61-0455-4f01-a782-56df3cf6d805`. A exportação versionável permanece inativa.
+O workflow `86iKeeCFXiiX3fki` está publicado e ativo na versão `b75c2993-24f7-4a26-852a-a803e089722b`. A exportação versionável permanece inativa.
 
 A primeira execução integrada no workflow `86iKeeCFXiiX3fki` selecionou cinco vídeos, criou quatro classificações e ignorou uma classificação inserida por uma execução concorrente. Terminou com zero falhas em 134,315 segundos. O bootstrap temporário da migration foi removido; a versão daquela validação possuía 13 nodes e ainda não estava publicada.
 
@@ -102,6 +103,8 @@ A execução manual `703`, já na versão da migration `017`, selecionou 30 cand
 A substituição do parser nativo por HTTP Request e validação determinística eliminou a interferência do conteúdo de raciocínio. Depois de reforçar enums e normalizar campos livres para `snake_case`, a execução real `1188` classificou e persistiu um candidato em 21,456 segundos, com zero falhas e passagem pelo finalizador. O workflow final possui 11 nodes.
 
 A execução real `1427` validou a normalização percentual: dez candidatos produziram dez classificações, sem falhas, em 136,626 segundos. Scores já contidos em `0–1` foram preservados; valores maiores que `1` e até `100` foram divididos por `100`; valores negativos, não numéricos ou acima de `100` continuaram inválidos.
+
+As duas respostas anteriormente rejeitadas por `format=quick_tutorials` e `format=gameplay` foram usadas como fixtures do normalizador e produziram, respectivamente, `tutorial` e `clip`. O teste manual `1430` confirmou a finalização do workflow publicado sem candidatos elegíveis naquele instante.
 
 Consulte e resolva a fila manual pelo PostgreSQL:
 
