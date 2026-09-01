@@ -1,7 +1,6 @@
 {
   "communities": {
     "0": [
-      "database_migrations_014_collection_reliability_video_snapshot_tracking_state_set_updated_at",
       "database_schema",
       "database_schema_build_phase12_validation",
       "database_schema_build_pipeline_observability",
@@ -27,60 +26,18 @@
       "database_schema_select_classification_review_candidates",
       "database_schema_select_language_detection_candidates",
       "database_schema_select_recommendation_candidates",
+      "database_schema_select_snapshot_candidates",
       "database_schema_set_manual_language_eligibility",
-      "database_schema_set_updated_at"
+      "database_schema_video_snapshot_tracking_state"
     ],
     "1": [
-      "database_migrations_009_opportunity_engine",
-      "database_migrations_009_opportunity_engine_refresh_opportunity_rankings",
-      "database_migrations_009_opportunity_engine_sql_category_statistics",
-      "database_migrations_015_language_eligibility",
-      "database_migrations_015_language_eligibility_language_matches_target",
-      "database_migrations_015_language_eligibility_normalize_language_code",
-      "database_migrations_015_language_eligibility_persist_language_detection",
-      "database_migrations_015_language_eligibility_record_language_detection_failure",
-      "database_migrations_015_language_eligibility_set_manual_language_eligibility",
-      "database_migrations_016_global_language_target",
-      "database_migrations_016_global_language_target_persist_language_detection",
-      "database_migrations_020_stale_pipeline_run_reconciliation",
-      "database_migrations_020_stale_pipeline_run_reconciliation_reconcile_stale_pipeline_runs",
-      "database_schema_settings",
-      "database_schema_snapshot_backoff_minutes"
-    ],
-    "2": [
+      "category_rows",
       "database_migrations_003_video_collection_provenance",
       "database_migrations_003_video_collection_provenance_sql_pipeline_runs",
       "database_migrations_003_video_collection_provenance_video_collection_matches",
       "database_migrations_005_ai_content_classifier",
       "database_migrations_005_ai_content_classifier_select_classification_candidates",
       "database_migrations_005_ai_content_classifier_sql_video_classifications",
-      "database_migrations_015_language_eligibility_select_classification_candidates",
-      "database_migrations_015_language_eligibility_select_language_detection_candidates",
-      "database_migrations_015_language_eligibility_sql_video_classifications",
-      "database_migrations_016_global_language_target_select_language_detection_candidates",
-      "database_migrations_017_classifier_reliability_select_classification_candidates",
-      "database_migrations_017_classifier_reliability_sql_video_classifications",
-      "database_schema_categories",
-      "database_schema_collection_queries"
-    ],
-    "3": [
-      "database_migrations_004_video_snapshot_tracker",
-      "database_migrations_004_video_snapshot_tracker_select_snapshot_candidates",
-      "database_migrations_006_metrics_engine",
-      "database_migrations_006_metrics_engine_refresh_video_metrics",
-      "database_migrations_006_metrics_engine_sql_video_classifications",
-      "database_migrations_006_metrics_engine_sql_video_metrics",
-      "database_migrations_014_collection_reliability",
-      "database_migrations_014_collection_reliability_select_snapshot_candidates",
-      "database_migrations_014_collection_reliability_snapshot_backoff_minutes",
-      "database_migrations_014_collection_reliability_video_snapshot_tracking_state",
-      "database_schema_select_snapshot_candidates",
-      "database_schema_video_snapshot_tracking_state",
-      "database_schema_video_snapshots",
-      "database_schema_videos"
-    ],
-    "4": [
-      "category_rows",
       "database_migrations_013_validation",
       "database_migrations_013_validation_build_phase12_validation",
       "database_migrations_013_validation_classification_validation_reviews",
@@ -91,9 +48,39 @@
       "database_migrations_013_validation_sql_video_classifications",
       "database_migrations_013_validation_sql_video_metrics",
       "database_migrations_013_validation_sql_video_monetization_scores",
+      "database_migrations_015_language_eligibility_select_classification_candidates",
+      "database_migrations_015_language_eligibility_select_language_detection_candidates",
+      "database_migrations_015_language_eligibility_sql_video_classifications",
+      "database_migrations_016_global_language_target",
+      "database_migrations_016_global_language_target_persist_language_detection",
+      "database_migrations_016_global_language_target_select_language_detection_candidates",
+      "database_schema_categories",
+      "database_schema_collection_queries",
+      "database_schema_videos",
       "required_categories"
     ],
-    "5": [
+    "2": [
+      "database_migrations_009_opportunity_engine",
+      "database_migrations_009_opportunity_engine_refresh_opportunity_rankings",
+      "database_migrations_009_opportunity_engine_sql_category_statistics",
+      "database_migrations_014_collection_reliability",
+      "database_migrations_014_collection_reliability_select_snapshot_candidates",
+      "database_migrations_014_collection_reliability_snapshot_backoff_minutes",
+      "database_migrations_014_collection_reliability_video_snapshot_tracking_state",
+      "database_migrations_014_collection_reliability_video_snapshot_tracking_state_set_updated_at",
+      "database_migrations_015_language_eligibility",
+      "database_migrations_015_language_eligibility_language_matches_target",
+      "database_migrations_015_language_eligibility_normalize_language_code",
+      "database_migrations_015_language_eligibility_persist_language_detection",
+      "database_migrations_015_language_eligibility_record_language_detection_failure",
+      "database_migrations_015_language_eligibility_set_manual_language_eligibility",
+      "database_migrations_020_stale_pipeline_run_reconciliation",
+      "database_migrations_020_stale_pipeline_run_reconciliation_reconcile_stale_pipeline_runs",
+      "database_schema_set_updated_at",
+      "database_schema_settings",
+      "database_schema_snapshot_backoff_minutes"
+    ],
+    "3": [
       "compared",
       "consistency_components",
       "database_migrations_008_trend_engine",
@@ -106,7 +93,7 @@
       "raw_aggregates",
       "scored_aggregates"
     ],
-    "6": [
+    "4": [
       "database_migrations_014_collection_reliability_persist_snapshot_batch",
       "database_migrations_014_collection_reliability_sql_pipeline_runs",
       "error_insert",
@@ -118,7 +105,40 @@
       "snapshot_insert",
       "successful_items"
     ],
+    "5": [
+      "compose_local_stack",
+      "docs_architecture_pipeline_workflows",
+      "docs_architecture_system_architecture",
+      "docs_contexto_geral_project_context",
+      "docs_data_model_data_model",
+      "docs_data_model_language_eligibility",
+      "infra_compose_infrastructure_stack",
+      "readme_trendlens_platform",
+      "workflows_readme_workflow_catalog"
+    ],
+    "6": [
+      "database_migrations_017_classifier_reliability",
+      "database_migrations_017_classifier_reliability_mark_classification_completed",
+      "database_migrations_017_classifier_reliability_record_classification_failure",
+      "database_migrations_017_classifier_reliability_resolve_classification_failure_review",
+      "database_migrations_017_classifier_reliability_select_classification_candidates",
+      "database_migrations_017_classifier_reliability_select_classification_failure_review_candidates",
+      "database_migrations_017_classifier_reliability_sql_pipeline_errors",
+      "database_migrations_017_classifier_reliability_sql_video_classifications",
+      "database_migrations_017_classifier_reliability_video_classification_processing_state"
+    ],
     "7": [
+      "docs_contexto_atual_current_context",
+      "docs_limitations_product_limitations",
+      "docs_methodology_monetization_score",
+      "docs_methodology_opportunity_score",
+      "docs_methodology_scoring_methodology",
+      "docs_methodology_virality_score",
+      "docs_scoring_scoring_reference",
+      "docs_validation_calibration_readiness",
+      "docs_validation_phase12_validation"
+    ],
+    "8": [
       "database_migrations_012_observability",
       "database_migrations_012_observability_build_pipeline_observability",
       "database_migrations_012_observability_pipeline_observability_reports",
@@ -128,140 +148,143 @@
       "database_migrations_012_observability_sql_video_classifications",
       "database_migrations_012_observability_sql_video_metrics"
     ],
-    "8": [
-      "database_migrations_017_classifier_reliability",
-      "database_migrations_017_classifier_reliability_mark_classification_completed",
-      "database_migrations_017_classifier_reliability_record_classification_failure",
-      "database_migrations_017_classifier_reliability_resolve_classification_failure_review",
-      "database_migrations_017_classifier_reliability_select_classification_failure_review_candidates",
-      "database_migrations_017_classifier_reliability_sql_pipeline_errors",
-      "database_migrations_017_classifier_reliability_video_classification_processing_state"
-    ],
     "9": [
+      "database_migrations_004_video_snapshot_tracker",
+      "database_migrations_004_video_snapshot_tracker_select_snapshot_candidates",
+      "database_migrations_006_metrics_engine",
+      "database_migrations_006_metrics_engine_refresh_video_metrics",
+      "database_migrations_006_metrics_engine_sql_video_classifications",
+      "database_migrations_006_metrics_engine_sql_video_metrics",
+      "database_schema_video_snapshots"
+    ],
+    "10": [
       "canonicalize_video_analytical_language",
       "database_migrations_018_analytical_language_normalization",
       "database_migrations_018_analytical_language_normalization_canonicalize_analytical_language",
       "database_migrations_018_analytical_language_normalization_canonicalize_video_analytical_language",
       "database_migrations_018_analytical_language_normalization_videos_canonicalize_analytical_language"
     ],
-    "10": [
+    "11": [
       "database_migrations_007_monetization_engine",
       "database_migrations_007_monetization_engine_refresh_video_monetization_scores",
       "database_migrations_007_monetization_engine_sql_video_classifications",
       "database_migrations_007_monetization_engine_sql_video_metrics",
       "database_migrations_007_monetization_engine_sql_video_monetization_scores"
     ],
-    "11": [
+    "12": [
       "database_migrations_011_report_engine",
       "database_migrations_011_report_engine_build_trendlens_report",
       "database_migrations_011_report_engine_reports",
       "database_migrations_011_report_engine_sql_category_statistics",
       "database_migrations_011_report_engine_sql_recommendations"
     ],
-    "12": [
+    "13": [
       "database_migrations_010_recommendation_ai",
       "database_migrations_010_recommendation_ai_select_recommendation_candidates"
     ],
-    "13": [
+    "14": [
       "database_migrations_022_recovery_aware_observability",
       "database_migrations_022_recovery_aware_observability_build_pipeline_observability_recovery_aware"
     ],
-    "14": [
-      "database_indexes"
-    ],
     "15": [
-      "database_migrations_002_youtube_collector"
+      "agents_graphify_instructions"
     ],
     "16": [
-      "database_migrations_008_trend_engine_sql_category_statistics"
+      "database_indexes"
     ],
     "17": [
-      "database_migrations_010_recommendation_ai_sql_recommendations"
+      "database_migrations_002_youtube_collector"
     ],
     "18": [
-      "database_migrations_019_recommendation_min_sample_size"
+      "database_migrations_008_trend_engine_sql_category_statistics"
     ],
     "19": [
-      "database_migrations_021_nemotron_3_ultra"
+      "database_migrations_010_recommendation_ai_sql_recommendations"
     ],
     "20": [
-      "database_seeds_categories"
+      "database_migrations_019_recommendation_min_sample_size"
     ],
     "21": [
-      "database_seeds_collection_queries"
+      "database_migrations_021_nemotron_3_ultra"
     ],
     "22": [
-      "database_seeds_settings"
+      "database_seeds_categories"
     ],
     "23": [
-      "tests_sql_ai_content_classifier"
+      "database_seeds_collection_queries"
     ],
     "24": [
-      "tests_sql_analytical_language_normalization"
+      "database_seeds_settings"
     ],
     "25": [
-      "tests_sql_classifier_reliability"
+      "tests_sql_ai_content_classifier"
     ],
     "26": [
-      "tests_sql_foundation_smoke"
+      "tests_sql_analytical_language_normalization"
     ],
     "27": [
-      "tests_sql_language_eligibility"
+      "tests_sql_classifier_reliability"
     ],
     "28": [
-      "tests_sql_metrics_engine"
+      "tests_sql_foundation_smoke"
     ],
     "29": [
-      "tests_sql_monetization_engine"
+      "tests_sql_language_eligibility"
     ],
     "30": [
-      "tests_sql_nemotron_model_configuration"
+      "tests_sql_metrics_engine"
     ],
     "31": [
-      "tests_sql_observability"
+      "tests_sql_monetization_engine"
     ],
     "32": [
-      "tests_sql_opportunity_engine"
+      "tests_sql_nemotron_model_configuration"
     ],
     "33": [
-      "tests_sql_recommendation_ai"
+      "tests_sql_observability"
     ],
     "34": [
-      "tests_sql_recovery_aware_observability"
+      "tests_sql_opportunity_engine"
     ],
     "35": [
-      "tests_sql_report_engine"
+      "tests_sql_recommendation_ai"
     ],
     "36": [
-      "tests_sql_stale_pipeline_runs"
+      "tests_sql_recovery_aware_observability"
     ],
     "37": [
-      "tests_sql_trend_engine"
+      "tests_sql_report_engine"
     ],
     "38": [
-      "tests_sql_validation"
+      "tests_sql_stale_pipeline_runs"
     ],
     "39": [
-      "tests_sql_video_snapshot_tracker"
+      "tests_sql_trend_engine"
     ],
     "40": [
+      "tests_sql_validation"
+    ],
+    "41": [
+      "tests_sql_video_snapshot_tracker"
+    ],
+    "42": [
       "tests_sql_youtube_collector_foundation"
     ]
   },
   "cohesion": {
-    "0": 0.07142857142857142,
-    "1": 0.14285714285714285,
-    "2": 0.25274725274725274,
-    "3": 0.21978021978021978,
-    "4": 0.21212121212121213,
-    "5": 0.18181818181818182,
-    "6": 0.2,
-    "7": 0.25,
-    "8": 0.3333333333333333,
-    "9": 0.4,
+    "0": 0.07407407407407407,
+    "1": 0.14245014245014245,
+    "2": 0.12280701754385964,
+    "3": 0.18181818181818182,
+    "4": 0.2,
+    "5": 0.2777777777777778,
+    "6": 0.2777777777777778,
+    "7": 0.3333333333333333,
+    "8": 0.25,
+    "9": 0.2857142857142857,
     "10": 0.4,
     "11": 0.4,
-    "12": 1.0,
+    "12": 0.4,
     "13": 1.0,
     "14": 1.0,
     "15": 1.0,
@@ -289,7 +312,9 @@
     "37": 1.0,
     "38": 1.0,
     "39": 1.0,
-    "40": 1.0
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0
   },
   "gods": [
     {
@@ -323,13 +348,13 @@
       "degree": 11
     },
     {
-      "id": "database_schema_collection_queries",
-      "label": "collection_queries",
+      "id": "database_migrations_014_collection_reliability_persist_snapshot_batch",
+      "label": "persist_snapshot_batch()",
       "degree": 10
     },
     {
-      "id": "database_migrations_014_collection_reliability_persist_snapshot_batch",
-      "label": "persist_snapshot_batch()",
+      "id": "database_schema_collection_queries",
+      "label": "collection_queries",
       "degree": 10
     },
     {
@@ -345,91 +370,96 @@
   ],
   "surprises": [
     {
-      "source": "snapshot_backoff_minutes()",
-      "target": "settings",
+      "source": "General Project Context",
+      "target": "TrendLens Platform",
       "source_files": [
-        "database/migrations/014_collection_reliability.sql",
-        "database/schema.sql"
+        "docs/contexto-geral.md",
+        "README.md"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "reads_from",
-      "why": "bridges separate communities; peripheral node `snapshot_backoff_minutes()` unexpectedly reaches hub `settings`"
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
     },
     {
-      "source": "record_classification_failure()",
-      "target": "settings",
+      "source": "Local Docker Stack",
+      "target": "System Architecture",
       "source_files": [
-        "database/migrations/017_classifier_reliability.sql",
-        "database/schema.sql"
+        "compose.yaml",
+        "docs/architecture.md"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "reads_from",
-      "why": "bridges separate communities; peripheral node `record_classification_failure()` unexpectedly reaches hub `settings`"
+      "confidence": "INFERRED",
+      "relation": "implements",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `Local Docker Stack` unexpectedly reaches hub `System Architecture`"
     },
     {
-      "source": "persist_language_detection()",
-      "target": "videos",
+      "source": "Infrastructure Docker Stack",
+      "target": "System Architecture",
       "source_files": [
-        "database/migrations/015_language_eligibility.sql",
-        "database/schema.sql"
+        "infra/compose.yaml",
+        "docs/architecture.md"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "reads_from",
-      "why": "bridges separate communities"
+      "confidence": "INFERRED",
+      "relation": "implements",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `Infrastructure Docker Stack` unexpectedly reaches hub `System Architecture`"
     },
     {
-      "source": "record_language_detection_failure()",
-      "target": "settings",
+      "source": "Scoring Reference",
+      "target": "Scoring Methodology",
       "source_files": [
-        "database/migrations/015_language_eligibility.sql",
-        "database/schema.sql"
+        "docs/scoring.md",
+        "docs/methodology.md"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "reads_from",
-      "why": "peripheral node `record_language_detection_failure()` unexpectedly reaches hub `settings`"
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; semantically similar concepts with no structural link; peripheral node `Scoring Reference` unexpectedly reaches hub `Scoring Methodology`"
     },
     {
-      "source": "persist_language_detection()",
-      "target": "videos",
+      "source": "Analytical Pipeline Workflows",
+      "target": "Workflow Catalog",
       "source_files": [
-        "database/migrations/016_global_language_target.sql",
-        "database/schema.sql"
+        "docs/architecture.md",
+        "workflows/README.md"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "reads_from",
-      "why": "bridges separate communities"
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
     }
   ],
   "questions": [
     {
       "type": "bridge_node",
-      "question": "Why does `settings` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 10`, `Community 11`?",
-      "why": "High betweenness centrality (0.212) - this node is a cross-community bridge."
+      "question": "Why does `settings` connect `Community 2` to `Community 0`, `Community 1`, `Community 3`, `Community 6`, `Community 8`, `Community 9`, `Community 11`, `Community 12`?",
+      "why": "High betweenness centrality (0.170) - this node is a cross-community bridge."
     },
     {
       "type": "bridge_node",
-      "question": "Why does `videos` connect `Community 3` to `Community 0`, `Community 1`, `Community 2`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 10`?",
-      "why": "High betweenness centrality (0.203) - this node is a cross-community bridge."
+      "question": "Why does `videos` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 6`, `Community 8`, `Community 9`, `Community 11`?",
+      "why": "High betweenness centrality (0.163) - this node is a cross-community bridge."
     },
     {
       "type": "bridge_node",
-      "question": "Why does `refresh_category_statistics()` connect `Community 5` to `Community 1`, `Community 2`, `Community 3`?",
-      "why": "High betweenness centrality (0.093) - this node is a cross-community bridge."
+      "question": "Why does `refresh_category_statistics()` connect `Community 3` to `Community 1`, `Community 2`, `Community 9`?",
+      "why": "High betweenness centrality (0.075) - this node is a cross-community bridge."
     },
     {
       "type": "isolated_nodes",
-      "question": "What connects `reports`, `pipeline_validation_reports`, `pipeline_observability_reports` to the rest of the system?",
-      "why": "3 weakly-connected nodes found - possible documentation gaps or missing edges."
+      "question": "What connects `reports`, `pipeline_observability_reports`, `pipeline_validation_reports` to the rest of the system?",
+      "why": "11 weakly-connected nodes found - possible documentation gaps or missing edges."
     },
     {
       "type": "low_cohesion",
       "question": "Should `Community 0` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.07142857142857142 - nodes in this community are weakly interconnected."
+      "why": "Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected."
     },
     {
       "type": "low_cohesion",
       "question": "Should `Community 1` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected."
+      "why": "Cohesion score 0.14245014245014245 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 2` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.12280701754385964 - nodes in this community are weakly interconnected."
     }
   ]
 }
