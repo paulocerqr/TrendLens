@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendLens — Complete Call Flow &amp; Architecture Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --warn: #fbbf24; --err: #f87171; --ok: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.7rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+h3 { font-size: 1.25rem; margin: 32px 0 12px; color: var(--accent); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px; color: var(--warn); }
+p { margin: 8px 0; color: var(--muted); }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; position: relative; }
+.mermaid.is-enhanced { padding: 0; overflow: hidden; min-height: 260px; }
+.mermaid-viewport { padding: 54px 24px 24px; overflow: hidden; cursor: grab; touch-action: none; min-height: 260px; }
+.mermaid-viewport.is-dragging { cursor: grabbing; }
+.mermaid-viewport svg { max-width: none !important; height: auto; transform-origin: 0 0; transition: transform 120ms ease; }
+.mermaid-toolbar { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(15,23,42,0.92); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); }
+.mermaid-toolbar button, .mermaid-toolbar .zoom-level { height: 28px; min-width: 32px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; color: var(--text); font: 600 0.78rem system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; }
+.mermaid-toolbar button { cursor: pointer; }
+.mermaid-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+.mermaid-toolbar .zoom-level { min-width: 52px; color: var(--muted); background: transparent; }
+.call-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+.call-table th { background: #1a2744; color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+.call-table td { padding: 8px 14px; border: 1px solid var(--border); vertical-align: top; }
+.call-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.tag-async { background: #7c3aed33; color: #a78bfa; }
+.tag-class { background: #05966933; color: var(--ok); }
+.tag-func { background: #2563eb33; color: var(--accent); }
+.tag-cmd { background: #d9770633; color: var(--warn); }
+.tag-endpoint { background: #dc262633; color: var(--err); }
+.tag-hook { background: #db277733; color: #f472b6; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 16px 0; }
+.arrow-chain { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); padding: 10px; background: rgba(56,189,248,0.06); border-radius: 6px; }
+code { font-family: 'Fira Code', 'Cascadia Code', monospace; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+ul, ol { margin: 8px 0 8px 24px; color: var(--muted); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.nav { position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; }
+.nav a { text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .container { padding: 16px; } h1 { font-size: 1.8rem; } }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>TrendLens — Complete Call Flow &amp; Architecture Documentation</h1>
+<p class="subtitle">Generated from graphify knowledge graph: 165 nodes, 200 edges, 41 communities. Commit: e398a19</p>
+
+<div class="nav">
+    <a href="#overview">Architecture Overview</a>
+    <a href="#extract-pipeline">Extraction Pipeline</a>
+    <a href="#build-graph">Graph Build</a>
+    <a href="#outputs-docs">Outputs &amp; Docs</a>
+    <a href="#ingest-cache-update">Ingestion &amp; Updates</a>
+    <a href="#tests-fixtures">Tests &amp; Fixtures</a>
+    <a href="#snapshot-insert-failed">Snapshot Insert Failed</a>
+    <a href="#017-classifier-reliabilitysql">017 Classifier Reliabilitysql</a>
+    <a href="#recommendation-010-aisql">Recommendation 010 Aisql</a>
+    <a href="#recovery-aware-022">Recovery Aware 022</a>
+    <a href="#indexessql-database">Indexessql Database</a>
+    <a href="#002-youtube-collectorsql">002 Youtube Collectorsql</a>
+    <a href="#category-statistics">Category Statistics</a>
+    <a href="#recommendations">Recommendations</a>
+    <a href="#021-nemotron-ultrasql">021 Nemotron Ultrasql</a>
+    <a href="#other">Other</a>
+</div>
+
+<!-- ====== Architecture Overview ====== -->
+<h2 id="overview">1. Architecture Overview</h2>
+
+<div class="mermaid">
+
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    EXTRACT_PIPELINE_5F350230("Extraction Pipeline<br/><small>22 nodes</small>")
+    class EXTRACT_PIPELINE_5F350230 module;
+    BUILD_GRAPH_321CBB04("Graph Build<br/><small>28 nodes</small>")
+    class BUILD_GRAPH_321CBB04 module;
+    OUTPUTS_DOCS_ED82387C("Outputs &amp; Docs<br/><small>6 nodes</small>")
+    class OUTPUTS_DOCS_ED82387C module;
+    INGEST_CACHE_UPDATE_FF457338("Ingestion &amp; Updates<br/><small>65 nodes</small>")
+    class INGEST_CACHE_UPDATE_FF457338 module;
+    TESTS_FIXTURES_B84B1DCC("Tests &amp; Fixtures<br/><small>11 nodes</small>")
+    class TESTS_FIXTURES_B84B1DCC module;
+    SNAPSHOT_INSERT_FAILED_0F9A51EF("Snapshot Insert Failed<br/><small>10 nodes</small>")
+    class SNAPSHOT_INSERT_FAILED_0F9A51EF module;
+    SECTION_017_CLASSIFIER_RELIABILITYSQL_EB845B0D("017 Classifier Reliabilitysql<br/><small>7 nodes</small>")
+    class SECTION_017_CLASSIFIER_RELIABILITYSQL_EB845B0D module;
+    RECOMMENDATION_010_AISQL_823E0B18("Recommendation 010 Aisql<br/><small>2 nodes</small>")
+    class RECOMMENDATION_010_AISQL_823E0B18 module;
+    RECOVERY_AWARE_022_7FE0A4FA("Recovery Aware 022<br/><small>2 nodes</small>")
+    class RECOVERY_AWARE_022_7FE0A4FA module;
+    INDEXESSQL_DATABASE_E751348C("Indexessql Database<br/><small>1 nodes</small>")
+    class INDEXESSQL_DATABASE_E751348C module;
+    SECTION_002_YOUTUBE_COLLECTORSQL_BF348411("002 Youtube Collectorsql<br/><small>1 nodes</small>")
+    class SECTION_002_YOUTUBE_COLLECTORSQL_BF348411 module;
+    CATEGORY_STATISTICS_155BC89A("Category Statistics<br/><small>1 nodes</small>")
+    class CATEGORY_STATISTICS_155BC89A module;
+    RECOMMENDATIONS_6AEB5AF3("Recommendations<br/><small>1 nodes</small>")
+    class RECOMMENDATIONS_6AEB5AF3 module;
+    SECTION_021_NEMOTRON_ULTRASQL_F0164588("021 Nemotron Ultrasql<br/><small>1 nodes</small>")
+    class SECTION_021_NEMOTRON_ULTRASQL_F0164588 module;
+    OTHER_D0941E68("Other<br/><small>7 nodes</small>")
+    class OTHER_D0941E68 module;
+    INGEST_CACHE_UPDATE_FF457338 -->|reads from x11| EXTRACT_PIPELINE_5F350230
+    BUILD_GRAPH_321CBB04 -->|contains x6| INGEST_CACHE_UPDATE_FF457338
+    EXTRACT_PIPELINE_5F350230 -->|contains x5| INGEST_CACHE_UPDATE_FF457338
+    SECTION_017_CLASSIFIER_RELIABILITYSQL_EB845B0D -->|contains x3| INGEST_CACHE_UPDATE_FF457338
+    BUILD_GRAPH_321CBB04 -->|contains x2| EXTRACT_PIPELINE_5F350230
+    OUTPUTS_DOCS_ED82387C -->|reads from| EXTRACT_PIPELINE_5F350230
+    INGEST_CACHE_UPDATE_FF457338 -->|reads from| SECTION_017_CLASSIFIER_RELIABILITYSQL_EB845B0D
+    INGEST_CACHE_UPDATE_FF457338 -->|contains| SNAPSHOT_INSERT_FAILED_0F9A51EF
+    INGEST_CACHE_UPDATE_FF457338 -->|contains| BUILD_GRAPH_321CBB04
+    SECTION_017_CLASSIFIER_RELIABILITYSQL_EB845B0D -->|reads from| EXTRACT_PIPELINE_5F350230
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h4>Architecture Layers</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
+      <tr><td>Extraction Pipeline</td><td>22</td><td><code>1, 9, 24, 27</code></td></tr><tr><td>Graph Build</td><td>28</td><td><code>0</code></td></tr><tr><td>Outputs &amp; Docs</td><td>6</td><td><code>11, 35</code></td></tr><tr><td>Ingestion &amp; Updates</td><td>65</td><td><code>2, 3, 4, 5, 7, 10, 39</code></td></tr><tr><td>Tests &amp; Fixtures</td><td>11</td><td><code>18, 23, 25, 26, 28, 29, 31, 32, 33, 37, 38</code></td></tr><tr><td>Snapshot Insert Failed</td><td>10</td><td><code>6</code></td></tr><tr><td>017 Classifier Reliabilitysql</td><td>7</td><td><code>8</code></td></tr><tr><td>Recommendation 010 Aisql</td><td>2</td><td><code>12</code></td></tr><tr><td>Recovery Aware 022</td><td>2</td><td><code>13</code></td></tr><tr><td>Indexessql Database</td><td>1</td><td><code>14</code></td></tr><tr><td>002 Youtube Collectorsql</td><td>1</td><td><code>15</code></td></tr><tr><td>Category Statistics</td><td>1</td><td><code>16</code></td></tr><tr><td>Recommendations</td><td>1</td><td><code>17</code></td></tr><tr><td>021 Nemotron Ultrasql</td><td>1</td><td><code>19</code></td></tr><tr><td>Other</td><td>7</td><td><code>20, 21, 22, 30, 34, 36, 40</code></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Core Flow</h4>
+    <div class="arrow-chain">Outputs &amp; Docs -&gt; Extraction Pipeline -&gt; Ingestion &amp; Updates -&gt; Snapshot Insert Failed -&gt; Graph Build -&gt; Tests &amp; Fixtures -&gt; 017 Classifier Reliabilitysql</div>
+  </div>
+</div>
+<hr>
+<!-- ====== 2. Extraction Pipeline ====== -->
+<h2 id="extract-pipeline">2. Extraction Pipeline</h2>
+<p>Extraction Pipeline groups implementation around language, database, migrations, analytical, mostly in database/migrations/015_language_eligibility.sql, database/migrations/018_analytical_language_normalization.sql, database/migrations/009_opportunity_engine.sql. This section covers 22 nodes and 19 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Extraction Pipeline (22 nodes, 19 edges)
+    subgraph extract_pipeline_database_migrations_015_languag_51d36983["database/migrations/015_language_eligibility.sql"]
+        database_migrations_015_language_eligibility_bf1a0486("015_language_eligibility.sql")
+        database_migrations_015_language_eligibility_per_f3e5d481("persist_language_detection()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+        database_migrations_015_language_eligibility_rec_69407ff7("language detection failure()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+        database_migrations_015_language_eligibility_nor_e9969109("normalize_language_code()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+        database_migrations_015_language_eligibility_lan_0811e5b0("language_matches_target()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+        database_migrations_015_language_eligibility_set_89fccd3b("manual language eligibility()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+    end
+    subgraph extract_pipeline_External_generated_e23197dc["External / generated"]
+        database_migrations_009_opportunity_engine_sql_c_1fcd4477("category_statistics")
+        canonicalize_video_analytical_language_64023264("video analytical language")
+    end
+    subgraph extract_pipeline_database_migrations_009_opportu_06ee019b["database/migrations/009_opportunity_engine.sql"]
+        database_migrations_009_opportunity_engine_refre_5d1081a9("refresh opportunity rankings()<br/><small>database/migrations/009_opportunity_engine.sql</small>")
+        database_migrations_009_opportunity_engine_9ca30625("009_opportunity_engine.sql")
+    end
+    subgraph extract_pipeline_database_migrations_016_global_fda310ed["database/migrations/016_global_language_target.sql"]
+        database_migrations_016_global_language_target_847dceab("global language target.sql<br/><small>database/migrations/016_global_language_target.sql</small>")
+        database_migrations_016_global_language_target_p_04a0247a("persist_language_detection()<br/><small>database/migrations/016_global_language_target.sql</small>")
+    end
+    subgraph extract_pipeline_database_migrations_018_analyti_f113136f["database/migrations/018_analytical_language_normalization.sql"]
+        database_migrations_018_analytical_language_norm_39188ef9("analytical language normalization.sql<br/><small>database/migrations/018_analytical_language_normalization.sql</small>")
+        database_migrations_018_analytical_language_norm_a3f9c310("canonicalize analytical language<br/><small>database/migrations/018_analytical_language_normalization.sql</small>")
+    end
+    subgraph extract_pipeline_database_migrations_020_stale_p_786d783b["database/migrations/020_stale_pipeline_run_reconciliation.sql"]
+        database_migrations_020_stale_pipeline_run_recon_627831c7("pipeline run reconciliation.sql<br/><small>database/migrations/020_stale_pipeline_run_reconciliation.sql</small>")
+        database_migrations_020_stale_pipeline_run_recon_99373cca("stale pipeline runs()<br/><small>database/migrations/020_stale_pipeline_run_reconciliation.sql</small>")
+    end
+    subgraph extract_pipeline_database_schema_sql_9895c5c1["database/schema.sql"]
+        database_schema_settings_556365c2("settings<br/><small>database/schema.sql</small>")
+        database_schema_snapshot_backoff_minutes_1693a006("snapshot_backoff_minutes()<br/><small>database/schema.sql</small>")
+    end
+    database_migrations_009_opportunity_engine_refre_5d1081a9 -->|reads from| database_schema_settings_556365c2
+    database_migrations_009_opportunity_engine_refre_5d1081a9 -->|reads from| database_migrations_009_opportunity_engine_sql_c_1fcd4477
+    database_migrations_015_language_eligibility_per_f3e5d481 -->|reads from| database_schema_settings_556365c2
+    database_migrations_015_language_eligibility_rec_69407ff7 -->|reads from| database_schema_settings_556365c2
+    database_migrations_016_global_language_target_p_04a0247a -->|reads from| database_schema_settings_556365c2
+    database_migrations_020_stale_pipeline_run_recon_99373cca -->|reads from| database_schema_settings_556365c2
+    database_schema_snapshot_backoff_minutes_1693a006 -->|reads from| database_schema_settings_556365c2
+    database_migrations_018_analytical_language_norm_a3f9c310 -->|triggers| canonicalize_video_analytical_language_64023264
+    database_migrations_009_opportunity_engine_9ca30625 -->|contains| database_migrations_009_opportunity_engine_refre_5d1081a9
+    database_migrations_015_language_eligibility_bf1a0486 -->|contains| database_migrations_015_language_eligibility_nor_e9969109
+    database_migrations_015_language_eligibility_bf1a0486 -->|contains| database_migrations_015_language_eligibility_lan_0811e5b0
+    database_migrations_015_language_eligibility_bf1a0486 -->|contains| database_migrations_015_language_eligibility_per_f3e5d481
+    database_migrations_015_language_eligibility_bf1a0486 -->|contains| database_migrations_015_language_eligibility_rec_69407ff7
+    database_migrations_015_language_eligibility_bf1a0486 -->|contains| database_migrations_015_language_eligibility_set_89fccd3b
+    database_migrations_016_global_language_target_847dceab -->|contains| database_migrations_016_global_language_target_p_04a0247a
+    database_migrations_020_stale_pipeline_run_recon_627831c7 -->|contains| database_migrations_020_stale_pipeline_run_recon_99373cca
+    database_migrations_018_analytical_language_norm_39188ef9 -->|contains| database_migrations_018_analytical_language_norm_a3f9c310
+    %% Omitted for readability: 4 nodes, 0 edges
+    class database_migrations_015_language_eligibility_bf1a0486 function;
+    class database_migrations_015_language_eligibility_per_f3e5d481 function;
+    class database_migrations_015_language_eligibility_rec_69407ff7 function;
+    class database_migrations_015_language_eligibility_nor_e9969109 function;
+    class database_migrations_015_language_eligibility_lan_0811e5b0 function;
+    class database_migrations_015_language_eligibility_set_89fccd3b function;
+    class database_migrations_009_opportunity_engine_sql_c_1fcd4477 function;
+    class canonicalize_video_analytical_language_64023264 function;
+    class database_migrations_009_opportunity_engine_refre_5d1081a9 function;
+    class database_migrations_009_opportunity_engine_9ca30625 function;
+    class database_migrations_016_global_language_target_847dceab function;
+    class database_migrations_016_global_language_target_p_04a0247a function;
+    class database_migrations_018_analytical_language_norm_39188ef9 function;
+    class database_migrations_018_analytical_language_norm_a3f9c310 function;
+    class database_migrations_020_stale_pipeline_run_recon_627831c7 function;
+    class database_migrations_020_stale_pipeline_run_recon_99373cca function;
+    class database_schema_settings_556365c2 function;
+    class database_schema_snapshot_backoff_minutes_1693a006 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>009_opportunity_engine.sql</code><br><small style="color:var(--muted)">database/migrations/009_opportunity_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>009_opportunity_engine.sql node in database/migrations/009_opportunity_engine.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>refresh_opportunity_rankings()</code><br><small style="color:var(--muted)">database/migrations/009_opportunity_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_opportunity_rankings() node in database/migrations/009_opportunity_engine.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>category_statistics</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>category_statistics node in project.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>015_language_eligibility.sql</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>015_language_eligibility.sql node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>language_matches_target()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>language_matches_target() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>normalize_language_code()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>normalize_language_code() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>persist_language_detection()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>persist_language_detection() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>record_language_detection_failure()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>record_language_detection_failure() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>set_manual_language_eligibility()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>set_manual_language_eligibility() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>016_global_language_target.sql</code><br><small style="color:var(--muted)">database/migrations/016_global_language_target.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>016_global_language_target.sql node in database/migrations/016_global_language_target.sql.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>persist_language_detection()</code><br><small style="color:var(--muted)">database/migrations/016_global_language_target.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>persist_language_detection() node in database/migrations/016_global_language_target.sql.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>020_stale_pipeline_run_reconciliation.sql</code><br><small style="color:var(--muted)">database/migrations/020_stale_pipeline_run_reconciliation.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>020_stale_pipeline_run_reconciliation.sql node in database/migrations/020_stale_pipeline_run_reconciliation.sql.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>reconcile_stale_pipeline_runs()</code><br><small style="color:var(--muted)">database/migrations/020_stale_pipeline_run_reconciliation.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>reconcile_stale_pipeline_runs() node in database/migrations/020_stale_pipeline_run_reconciliation.sql.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>settings</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>settings node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>snapshot_backoff_minutes()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>snapshot_backoff_minutes() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>canonicalize_video_analytical_language</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>018_analytical_language_normalization.sql</code><br><small style="color:var(--muted)">database/migrations/018_analytical_language_normalization.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>canonicalize_analytical_language()</code><br><small style="color:var(--muted)">database/migrations/018_analytical_language_normalization.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>canonicalize_video_analytical_language()</code><br><small style="color:var(--muted)">database/migrations/018_analytical_language_normalization.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>videos_canonicalize_analytical_language</code><br><small style="color:var(--muted)">database/migrations/018_analytical_language_normalization.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>analytical-language-normalization.sql</code><br><small style="color:var(--muted)">tests/sql/analytical-language-normalization.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>language-eligibility.sql</code><br><small style="color:var(--muted)">tests/sql/language-eligibility.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>language-eligibility.sql node in tests/sql/language-eligibility.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/015_language_eligibility.sql</code></td><td>6 nodes</td></tr>
+<tr><td><code>database/migrations/018_analytical_language_normalization.sql</code></td><td>4 nodes</td></tr>
+<tr><td><code>database/migrations/009_opportunity_engine.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/migrations/016_global_language_target.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/migrations/020_stale_pipeline_run_reconciliation.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/schema.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>tests/sql/analytical-language-normalization.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/language-eligibility.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x11, reads from x7, triggers x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 3. Graph Build ====== -->
+<h2 id="build-graph">3. Graph Build</h2>
+<p>Graph Build groups implementation around database, schemasql, language, classification, mostly in database/schema.sql, database/migrations/014_collection_reliability.sql. This section covers 28 nodes and 27 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Graph Build (28 nodes, 27 edges)
+    subgraph build_graph_database_schema_sql_a24ac82c["database/schema.sql"]
+        database_schema_29f7580e("schema.sql")
+        database_schema_set_updated_at_3967728b("set_updated_at()<br/><small>database/schema.sql</small>")
+        database_schema_persist_language_detection_f5de430d("persist_language_detection()<br/><small>database/schema.sql</small>")
+        database_schema_record_language_detection_failur_f18d8c9c("language detection failure()<br/><small>database/schema.sql</small>")
+        database_schema_set_manual_language_eligibility_ecf7f8d7("manual language eligibility()<br/><small>database/schema.sql</small>")
+        database_schema_select_classification_candidates_b508a6f3("select classification candidates()<br/><small>database/schema.sql</small>")
+        database_schema_refresh_video_metrics_c8a473e4("refresh_video_metrics()<br/><small>database/schema.sql</small>")
+        database_schema_refresh_video_monetization_score_4d61cddc("video monetization scores()<br/><small>database/schema.sql</small>")
+        database_schema_refresh_category_statistics_ade9f6ad("refresh category statistics()<br/><small>database/schema.sql</small>")
+        database_schema_refresh_opportunity_rankings_789dfb2f("refresh opportunity rankings()<br/><small>database/schema.sql</small>")
+        database_schema_select_recommendation_candidates_611c557c("select recommendation candidates()<br/><small>database/schema.sql</small>")
+        database_schema_build_trendlens_report_18c9796d("build_trendlens_report()<br/><small>database/schema.sql</small>")
+        database_schema_build_pipeline_observability_d06a108a("build pipeline observability()<br/><small>database/schema.sql</small>")
+        database_schema_select_classification_review_can_8b49afb7("classification review candidates()<br/><small>database/schema.sql</small>")
+        database_schema_build_phase12_validation_52925798("build_phase12_validation()<br/><small>database/schema.sql</small>")
+        database_schema_build_pipeline_observability_rec_bcb462dd("observability recovery aware()<br/><small>database/schema.sql</small>")
+        database_schema_reconcile_stale_pipeline_runs_1fa18ddd("stale pipeline runs()<br/><small>database/schema.sql</small>")
+    end
+    database_migrations_014_collection_reliability_v_987d45d6("set updated at<br/><small>database/migrations/014_collection_reliability.sql</small>")
+    database_migrations_014_collection_reliability_v_987d45d6 -->|triggers| database_schema_set_updated_at_3967728b
+    database_schema_29f7580e -->|contains| database_schema_persist_language_detection_f5de430d
+    database_schema_29f7580e -->|contains| database_schema_record_language_detection_failur_f18d8c9c
+    database_schema_29f7580e -->|contains| database_schema_set_manual_language_eligibility_ecf7f8d7
+    database_schema_29f7580e -->|contains| database_schema_select_classification_candidates_b508a6f3
+    database_schema_29f7580e -->|contains| database_schema_refresh_video_metrics_c8a473e4
+    database_schema_29f7580e -->|contains| database_schema_refresh_video_monetization_score_4d61cddc
+    database_schema_29f7580e -->|contains| database_schema_refresh_category_statistics_ade9f6ad
+    database_schema_29f7580e -->|contains| database_schema_refresh_opportunity_rankings_789dfb2f
+    database_schema_29f7580e -->|contains| database_schema_select_recommendation_candidates_611c557c
+    database_schema_29f7580e -->|contains| database_schema_build_trendlens_report_18c9796d
+    database_schema_29f7580e -->|contains| database_schema_set_updated_at_3967728b
+    database_schema_29f7580e -->|contains| database_schema_build_pipeline_observability_d06a108a
+    database_schema_29f7580e -->|contains| database_schema_select_classification_review_can_8b49afb7
+    database_schema_29f7580e -->|contains| database_schema_build_phase12_validation_52925798
+    database_schema_29f7580e -->|contains| database_schema_build_pipeline_observability_rec_bcb462dd
+    database_schema_29f7580e -->|contains| database_schema_reconcile_stale_pipeline_runs_1fa18ddd
+    %% Omitted for readability: 10 nodes, 0 edges
+    class database_schema_29f7580e function;
+    class database_schema_set_updated_at_3967728b function;
+    class database_schema_persist_language_detection_f5de430d function;
+    class database_schema_record_language_detection_failur_f18d8c9c function;
+    class database_schema_set_manual_language_eligibility_ecf7f8d7 function;
+    class database_schema_select_classification_candidates_b508a6f3 function;
+    class database_schema_refresh_video_metrics_c8a473e4 function;
+    class database_schema_refresh_video_monetization_score_4d61cddc function;
+    class database_schema_refresh_category_statistics_ade9f6ad function;
+    class database_schema_refresh_opportunity_rankings_789dfb2f function;
+    class database_schema_select_recommendation_candidates_611c557c function;
+    class database_schema_build_trendlens_report_18c9796d function;
+    class database_schema_build_pipeline_observability_d06a108a function;
+    class database_schema_select_classification_review_can_8b49afb7 function;
+    class database_schema_build_phase12_validation_52925798 function;
+    class database_schema_build_pipeline_observability_rec_bcb462dd function;
+    class database_schema_reconcile_stale_pipeline_runs_1fa18ddd function;
+    class database_migrations_014_collection_reliability_v_987d45d6 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>video_snapshot_tracking_state_set_updated_at</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_snapshot_tracking_state_set_updated_at node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>schema.sql</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>schema.sql node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>build_phase12_validation()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_phase12_validation() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>build_pipeline_observability()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_pipeline_observability() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>build_pipeline_observability_recovery_aware()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_pipeline_observability_recovery_aware() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>build_trendlens_report()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_trendlens_report() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>canonicalize_analytical_language()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>canonicalize_video_analytical_language()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>language_matches_target()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>language_matches_target() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>mark_classification_completed()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>mark_classification_completed() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>normalize_language_code()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>normalize_language_code() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>persist_language_detection()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>persist_language_detection() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>persist_snapshot_batch()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>persist_snapshot_batch() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>reconcile_stale_pipeline_runs()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>reconcile_stale_pipeline_runs() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>record_classification_failure()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>record_classification_failure() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>record_language_detection_failure()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>record_language_detection_failure() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>refresh_category_statistics()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_category_statistics() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>refresh_opportunity_rankings()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_opportunity_rankings() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>refresh_video_metrics()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_video_metrics() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>refresh_video_monetization_scores()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_video_monetization_scores() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>resolve_classification_failure_review()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>resolve_classification_failure_review() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>select_classification_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>select_classification_failure_review_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_failure_review_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>select_classification_review_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_review_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>select_language_detection_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_language_detection_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>select_recommendation_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_recommendation_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>set_manual_language_eligibility()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>set_manual_language_eligibility() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>set_updated_at()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>set_updated_at() node in database/schema.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/schema.sql</code></td><td>27 nodes</td></tr>
+<tr><td><code>database/migrations/014_collection_reliability.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x26, triggers x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 4. Outputs & Docs ====== -->
+<h2 id="outputs-docs">4. Outputs &amp; Docs</h2>
+<p>Outputs &amp; Docs groups implementation around report, enginesql, 011, database, mostly in database/migrations/011_report_engine.sql, tests/sql/report-engine.sql. This section covers 6 nodes and 4 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Outputs &amp; Docs (6 nodes, 4 edges)
+    subgraph outputs_docs_database_migrations_011_report_engi_71845ef1["database/migrations/011_report_engine.sql"]
+        database_migrations_011_report_engine_418666ef("011_report_engine.sql")
+        database_migrations_011_report_engine_build_tren_19ef9234("build_trendlens_report()<br/><small>database/migrations/011_report_engine.sql</small>")
+        database_migrations_011_report_engine_reports_30deafd5("reports<br/><small>database/migrations/011_report_engine.sql</small>")
+    end
+    subgraph outputs_docs_External_generated_a8e9d6d8["External / generated"]
+        database_migrations_011_report_engine_sql_catego_0f1184f8("category_statistics")
+        database_migrations_011_report_engine_sql_recomm_9ab668e9("recommendations")
+    end
+    tests_sql_report_engine_673b3972("report-engine.sql")
+    database_migrations_011_report_engine_build_tren_19ef9234 -->|reads from| database_migrations_011_report_engine_sql_catego_0f1184f8
+    database_migrations_011_report_engine_build_tren_19ef9234 -->|reads from| database_migrations_011_report_engine_sql_recomm_9ab668e9
+    database_migrations_011_report_engine_418666ef -->|contains| database_migrations_011_report_engine_reports_30deafd5
+    database_migrations_011_report_engine_418666ef -->|contains| database_migrations_011_report_engine_build_tren_19ef9234
+    class database_migrations_011_report_engine_418666ef function;
+    class database_migrations_011_report_engine_build_tren_19ef9234 function;
+    class database_migrations_011_report_engine_reports_30deafd5 function;
+    class database_migrations_011_report_engine_sql_catego_0f1184f8 function;
+    class database_migrations_011_report_engine_sql_recomm_9ab668e9 function;
+    class tests_sql_report_engine_673b3972 test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>011_report_engine.sql</code><br><small style="color:var(--muted)">database/migrations/011_report_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>011_report_engine.sql node in database/migrations/011_report_engine.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>build_trendlens_report()</code><br><small style="color:var(--muted)">database/migrations/011_report_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_trendlens_report() node in database/migrations/011_report_engine.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>reports</code><br><small style="color:var(--muted)">database/migrations/011_report_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>reports node in database/migrations/011_report_engine.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>category_statistics</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>category_statistics node in project.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>recommendations</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>recommendations node in project.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>report-engine.sql</code><br><small style="color:var(--muted)">tests/sql/report-engine.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>report-engine.sql node in tests/sql/report-engine.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/011_report_engine.sql</code></td><td>3 nodes</td></tr>
+<tr><td><code>tests/sql/report-engine.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x2, reads from x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 5. Ingestion & Updates ====== -->
+<h2 id="ingest-cache-update">5. Ingestion &amp; Updates</h2>
+<p>Ingestion &amp; Updates groups implementation around database, video, migrations, snapshot, mostly in database/schema.sql, database/migrations/013_validation.sql, database/migrations/014_collection_reliability.sql. This section covers 65 nodes and 100 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Ingestion &amp; Updates (65 nodes, 100 edges)
+    subgraph ingest_cache_update_External_generated_9d67cab5["External / generated"]
+        database_migrations_007_monetization_engine_sql_0129d7f8("video_classifications")
+        database_migrations_007_monetization_engine_sql_a151ce0e("video_metrics")
+        database_migrations_007_monetization_engine_sql_09582d21("video_monetization_scores")
+        database_migrations_003_video_collection_provena_79acdcf4("pipeline_runs")
+        database_migrations_005_ai_content_classifier_sq_135c9bf6("video_classifications")
+        database_migrations_015_language_eligibility_sql_a2393803("video_classifications")
+    end
+    subgraph ingest_cache_update_database_schema_sql_e956adc1["database/schema.sql"]
+        database_schema_videos_a70c5732("videos<br/><small>database/schema.sql</small>")
+        database_schema_collection_queries_9a0fca1f("collection_queries<br/><small>database/schema.sql</small>")
+        database_schema_categories_17b14d59("categories<br/><small>database/schema.sql</small>")
+    end
+    subgraph ingest_cache_update_database_migrations_013_vali_276caa4c["database/migrations/013_validation.sql"]
+        database_migrations_013_validation_build_phase12_1bf36c5d("build_phase12_validation()<br/><small>database/migrations/013_validation.sql</small>")
+        database_migrations_013_validation_select_classi_aaacc6fe("classification review candidates()<br/><small>database/migrations/013_validation.sql</small>")
+    end
+    database_migrations_003_video_collection_provena_2c5880a8("video_collection_matches<br/><small>database/migrations/003_video_collection_provenance.sql</small>")
+    database_migrations_005_ai_content_classifier_se_6c1461c1("select classification candidates()<br/><small>database/migrations/005_ai_content_classifier.sql</small>")
+    database_migrations_007_monetization_engine_refr_f938a458("video monetization scores()<br/><small>database/migrations/007_monetization_engine.sql</small>")
+    database_migrations_008_trend_engine_refresh_cat_0ff541b3("refresh category statistics()<br/><small>database/migrations/008_trend_engine.sql</small>")
+    database_migrations_012_observability_build_pipe_84967f5c("build pipeline observability()<br/><small>database/migrations/012_observability.sql</small>")
+    database_migrations_015_language_eligibility_sel_13c95b7c("select classification candidates()<br/><small>database/migrations/015_language_eligibility.sql</small>")
+    database_migrations_017_classifier_reliability_s_a85a8090("select classification candidates()<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+    database_migrations_007_monetization_engine_refr_f938a458 -->|reads from| database_migrations_007_monetization_engine_sql_0129d7f8
+    database_migrations_007_monetization_engine_refr_f938a458 -->|reads from| database_schema_videos_a70c5732
+    database_migrations_007_monetization_engine_refr_f938a458 -->|reads from| database_migrations_007_monetization_engine_sql_a151ce0e
+    database_migrations_007_monetization_engine_refr_f938a458 -->|reads from| database_migrations_007_monetization_engine_sql_09582d21
+    database_migrations_003_video_collection_provena_2c5880a8 -->|references| database_migrations_003_video_collection_provena_79acdcf4
+    database_migrations_003_video_collection_provena_2c5880a8 -->|references| database_schema_collection_queries_9a0fca1f
+    database_migrations_003_video_collection_provena_2c5880a8 -->|references| database_schema_videos_a70c5732
+    database_migrations_005_ai_content_classifier_se_6c1461c1 -->|reads from| database_schema_videos_a70c5732
+    database_migrations_005_ai_content_classifier_se_6c1461c1 -->|reads from| database_migrations_003_video_collection_provena_2c5880a8
+    database_migrations_005_ai_content_classifier_se_6c1461c1 -->|reads from| database_schema_collection_queries_9a0fca1f
+    database_migrations_005_ai_content_classifier_se_6c1461c1 -->|reads from| database_schema_categories_17b14d59
+    database_migrations_005_ai_content_classifier_se_6c1461c1 -->|reads from| database_migrations_005_ai_content_classifier_sq_135c9bf6
+    database_migrations_015_language_eligibility_sel_13c95b7c -->|reads from| database_schema_videos_a70c5732
+    database_migrations_015_language_eligibility_sel_13c95b7c -->|reads from| database_migrations_003_video_collection_provena_2c5880a8
+    database_migrations_015_language_eligibility_sel_13c95b7c -->|reads from| database_schema_collection_queries_9a0fca1f
+    database_migrations_015_language_eligibility_sel_13c95b7c -->|reads from| database_schema_categories_17b14d59
+    database_migrations_015_language_eligibility_sel_13c95b7c -->|reads from| database_migrations_015_language_eligibility_sql_a2393803
+    database_migrations_017_classifier_reliability_s_a85a8090 -->|reads from| database_schema_videos_a70c5732
+    database_migrations_017_classifier_reliability_s_a85a8090 -->|reads from| database_migrations_003_video_collection_provena_2c5880a8
+    database_migrations_017_classifier_reliability_s_a85a8090 -->|reads from| database_schema_collection_queries_9a0fca1f
+    database_migrations_017_classifier_reliability_s_a85a8090 -->|reads from| database_schema_categories_17b14d59
+    database_schema_collection_queries_9a0fca1f -->|references| database_schema_categories_17b14d59
+    database_migrations_013_validation_build_phase12_1bf36c5d -->|reads from| database_schema_videos_a70c5732
+    database_migrations_013_validation_build_phase12_1bf36c5d -->|reads from| database_migrations_003_video_collection_provena_2c5880a8
+    %% Omitted for readability: 47 nodes, 10 edges
+    class database_migrations_007_monetization_engine_sql_0129d7f8 function;
+    class database_migrations_007_monetization_engine_sql_a151ce0e function;
+    class database_migrations_007_monetization_engine_sql_09582d21 function;
+    class database_migrations_003_video_collection_provena_79acdcf4 function;
+    class database_migrations_005_ai_content_classifier_sq_135c9bf6 function;
+    class database_migrations_015_language_eligibility_sql_a2393803 function;
+    class database_schema_videos_a70c5732 function;
+    class database_schema_collection_queries_9a0fca1f function;
+    class database_schema_categories_17b14d59 function;
+    class database_migrations_013_validation_build_phase12_1bf36c5d function;
+    class database_migrations_013_validation_select_classi_aaacc6fe function;
+    class database_migrations_003_video_collection_provena_2c5880a8 function;
+    class database_migrations_005_ai_content_classifier_se_6c1461c1 function;
+    class database_migrations_007_monetization_engine_refr_f938a458 function;
+    class database_migrations_008_trend_engine_refresh_cat_0ff541b3 function;
+    class database_migrations_012_observability_build_pipe_84967f5c function;
+    class database_migrations_015_language_eligibility_sel_13c95b7c function;
+    class database_migrations_017_classifier_reliability_s_a85a8090 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>003_video_collection_provenance.sql</code><br><small style="color:var(--muted)">database/migrations/003_video_collection_provenance.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>003_video_collection_provenance.sql node in database/migrations/003_video_collection_provenance.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>pipeline_runs</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>pipeline_runs node in project.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>video_collection_matches</code><br><small style="color:var(--muted)">database/migrations/003_video_collection_provenance.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_collection_matches node in database/migrations/003_video_collection_provenance.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>005_ai_content_classifier.sql</code><br><small style="color:var(--muted)">database/migrations/005_ai_content_classifier.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>005_ai_content_classifier.sql node in database/migrations/005_ai_content_classifier.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>select_classification_candidates()</code><br><small style="color:var(--muted)">database/migrations/005_ai_content_classifier.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_candidates() node in database/migrations/005_ai_content_classifier.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>video_classifications</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_classifications node in project.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>select_classification_candidates()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_candidates() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>select_language_detection_candidates()</code><br><small style="color:var(--muted)">database/migrations/015_language_eligibility.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_language_detection_candidates() node in database/migrations/015_language_eligibility.sql.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>video_classifications</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_classifications node in project.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>select_language_detection_candidates()</code><br><small style="color:var(--muted)">database/migrations/016_global_language_target.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_language_detection_candidates() node in database/migrations/016_global_language_target.sql.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>select_classification_candidates()</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_candidates() node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>video_classifications</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_classifications node in project.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>categories</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>categories node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>collection_queries</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>collection_queries node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>004_video_snapshot_tracker.sql</code><br><small style="color:var(--muted)">database/migrations/004_video_snapshot_tracker.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>004_video_snapshot_tracker.sql node in database/migrations/004_video_snapshot_tracker.sql.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>select_snapshot_candidates()</code><br><small style="color:var(--muted)">database/migrations/004_video_snapshot_tracker.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_snapshot_candidates() node in database/migrations/004_video_snapshot_tracker.sql.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>006_metrics_engine.sql</code><br><small style="color:var(--muted)">database/migrations/006_metrics_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>006_metrics_engine.sql node in database/migrations/006_metrics_engine.sql.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>refresh_video_metrics()</code><br><small style="color:var(--muted)">database/migrations/006_metrics_engine.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>refresh_video_metrics() node in database/migrations/006_metrics_engine.sql.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>video_classifications</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_classifications node in project.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>video_metrics</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_metrics node in project.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>014_collection_reliability.sql</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>014_collection_reliability.sql node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>select_snapshot_candidates()</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_snapshot_candidates() node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>snapshot_backoff_minutes()</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>snapshot_backoff_minutes() node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>video_snapshot_tracking_state</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_snapshot_tracking_state node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>select_snapshot_candidates()</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_snapshot_candidates() node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>video_snapshot_tracking_state</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_snapshot_tracking_state node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>video_snapshots</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_snapshots node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>videos</code><br><small style="color:var(--muted)">database/schema.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>videos node in database/schema.sql.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>category_rows</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>category_rows node in project.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>013_validation.sql</code><br><small style="color:var(--muted)">database/migrations/013_validation.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>013_validation.sql node in database/migrations/013_validation.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/schema.sql</code></td><td>6 nodes</td></tr>
+<tr><td><code>database/migrations/013_validation.sql</code></td><td>5 nodes</td></tr>
+<tr><td><code>database/migrations/014_collection_reliability.sql</code></td><td>4 nodes</td></tr>
+<tr><td><code>database/migrations/012_observability.sql</code></td><td>3 nodes</td></tr>
+<tr><td><code>database/migrations/003_video_collection_provenance.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/migrations/004_video_snapshot_tracker.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/migrations/005_ai_content_classifier.sql</code></td><td>2 nodes</td></tr>
+<tr><td><code>database/migrations/006_metrics_engine.sql</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: reads from x77, contains x15, references x8. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 6. Tests & Fixtures ====== -->
+<h2 id="tests-fixtures">6. Tests &amp; Fixtures</h2>
+<p>Tests &amp; Fixtures groups implementation around tests, sql, enginesql, recommendation, mostly in database/migrations/019_recommendation_min_sample_size.sql, tests/sql/ai-content-classifier.sql, tests/sql/classifier-reliability.sql. This section covers 11 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Tests &amp; Fixtures (11 nodes, 0 edges)
+    database_migrations_019_recommendation_min_sampl_f3a4a47e("min sample size.sql<br/><small>database/migrations/019_recommendation_min_sample_size.sql</small>")
+    tests_sql_ai_content_classifier_37857de0("ai-content-classifier.sql")
+    tests_sql_classifier_reliability_07faf474("classifier-reliability.sql")
+    tests_sql_foundation_smoke_0199cbc3("foundation-smoke.sql")
+    tests_sql_metrics_engine_849f367e("metrics-engine.sql")
+    tests_sql_monetization_engine_67fe86d7("monetization-engine.sql")
+    tests_sql_observability_9ce61c1e("observability.sql")
+    tests_sql_opportunity_engine_5a3474fb("opportunity-engine.sql")
+    tests_sql_recommendation_ai_982610d9("recommendation-ai.sql")
+    tests_sql_trend_engine_ec3ab250("trend-engine.sql")
+    tests_sql_validation_62b85a65("validation.sql")
+    class database_migrations_019_recommendation_min_sampl_f3a4a47e function;
+    class tests_sql_ai_content_classifier_37857de0 test;
+    class tests_sql_classifier_reliability_07faf474 test;
+    class tests_sql_foundation_smoke_0199cbc3 test;
+    class tests_sql_metrics_engine_849f367e test;
+    class tests_sql_monetization_engine_67fe86d7 test;
+    class tests_sql_observability_9ce61c1e test;
+    class tests_sql_opportunity_engine_5a3474fb test;
+    class tests_sql_recommendation_ai_982610d9 test;
+    class tests_sql_trend_engine_ec3ab250 test;
+    class tests_sql_validation_62b85a65 test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>019_recommendation_min_sample_size.sql</code><br><small style="color:var(--muted)">database/migrations/019_recommendation_min_sample_size.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>019_recommendation_min_sample_size.sql node in database/migrations/019_recommendation_min_sample_size.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>ai-content-classifier.sql</code><br><small style="color:var(--muted)">tests/sql/ai-content-classifier.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ai-content-classifier.sql node in tests/sql/ai-content-classifier.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>classifier-reliability.sql</code><br><small style="color:var(--muted)">tests/sql/classifier-reliability.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>classifier-reliability.sql node in tests/sql/classifier-reliability.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>foundation-smoke.sql</code><br><small style="color:var(--muted)">tests/sql/foundation-smoke.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>foundation-smoke.sql node in tests/sql/foundation-smoke.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>metrics-engine.sql</code><br><small style="color:var(--muted)">tests/sql/metrics-engine.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>metrics-engine.sql node in tests/sql/metrics-engine.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>monetization-engine.sql</code><br><small style="color:var(--muted)">tests/sql/monetization-engine.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>monetization-engine.sql node in tests/sql/monetization-engine.sql.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>observability.sql</code><br><small style="color:var(--muted)">tests/sql/observability.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>observability.sql node in tests/sql/observability.sql.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>opportunity-engine.sql</code><br><small style="color:var(--muted)">tests/sql/opportunity-engine.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>opportunity-engine.sql node in tests/sql/opportunity-engine.sql.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>recommendation-ai.sql</code><br><small style="color:var(--muted)">tests/sql/recommendation-ai.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>recommendation-ai.sql node in tests/sql/recommendation-ai.sql.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>trend-engine.sql</code><br><small style="color:var(--muted)">tests/sql/trend-engine.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>trend-engine.sql node in tests/sql/trend-engine.sql.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>validation.sql</code><br><small style="color:var(--muted)">tests/sql/validation.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>validation.sql node in tests/sql/validation.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/019_recommendation_min_sample_size.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/ai-content-classifier.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/classifier-reliability.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/foundation-smoke.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/metrics-engine.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/monetization-engine.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/observability.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/opportunity-engine.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Snapshot Insert Failed ====== -->
+<h2 id="snapshot-insert-failed">7. Snapshot Insert Failed</h2>
+<p>Snapshot Insert Failed groups implementation around snapshot, insert, failed, items, mostly in database/migrations/014_collection_reliability.sql. This section covers 10 nodes and 9 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Snapshot Insert Failed (10 nodes, 9 edges)
+    subgraph snapshot_insert_failed_External_generated_f912f863["External / generated"]
+        database_migrations_014_collection_reliability_s_3e7e9811("pipeline_runs")
+        external_id_a720b844("external_id")
+        returned_1302aeee("returned")
+        matched_d010685f("matched")
+        failed_items_b23bf3c3("failed_items")
+        successful_items_0815b450("successful_items")
+        snapshot_insert_afce43fd("snapshot_insert")
+        failed_state_upsert_57e7a30a("failed_state_upsert")
+        error_insert_699c5c8e("error_insert")
+    end
+    database_migrations_014_collection_reliability_p_b7771904("persist_snapshot_batch()<br/><small>database/migrations/014_collection_reliability.sql</small>")
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| database_migrations_014_collection_reliability_s_3e7e9811
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| external_id_a720b844
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| returned_1302aeee
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| matched_d010685f
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| failed_items_b23bf3c3
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| successful_items_0815b450
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| snapshot_insert_afce43fd
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| failed_state_upsert_57e7a30a
+    database_migrations_014_collection_reliability_p_b7771904 -->|reads from| error_insert_699c5c8e
+    class database_migrations_014_collection_reliability_s_3e7e9811 function;
+    class external_id_a720b844 function;
+    class returned_1302aeee function;
+    class matched_d010685f function;
+    class failed_items_b23bf3c3 function;
+    class successful_items_0815b450 function;
+    class snapshot_insert_afce43fd function;
+    class failed_state_upsert_57e7a30a function;
+    class error_insert_699c5c8e function;
+    class database_migrations_014_collection_reliability_p_b7771904 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>persist_snapshot_batch()</code><br><small style="color:var(--muted)">database/migrations/014_collection_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>persist_snapshot_batch() node in database/migrations/014_collection_reliability.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>pipeline_runs</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>pipeline_runs node in project.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>error_insert</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>error_insert node in project.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>external_id</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>external_id node in project.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>failed_items</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>failed_items node in project.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>failed_state_upsert</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>failed_state_upsert node in project.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>matched</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>matched node in project.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>returned</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>returned node in project.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>snapshot_insert</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>snapshot_insert node in project.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>successful_items</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>successful_items node in project.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/014_collection_reliability.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: reads from x9. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 8. 017 Classifier Reliabilitysql ====== -->
+<h2 id="017-classifier-reliabilitysql">8. 017 Classifier Reliabilitysql</h2>
+<p>017 Classifier Reliabilitysql groups implementation around 017, classifier, reliabilitysql, database, mostly in database/migrations/017_classifier_reliability.sql. This section covers 7 nodes and 7 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: 017 Classifier Reliabilitysql (7 nodes, 7 edges)
+    subgraph node_017_classifier_reliabilitysql_database_migr_5b3d62ec["database/migrations/017_classifier_reliability.sql"]
+        database_migrations_017_classifier_reliability_849cd0da("017 classifier reliability.sql<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+        database_migrations_017_classifier_reliability_s_ba8facb3("failure review candidates()<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+        database_migrations_017_classifier_reliability_v_f05ea278("classification processing state<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+        database_migrations_017_classifier_reliability_m_5319891f("mark classification completed()<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+        database_migrations_017_classifier_reliability_r_9e7f1287("classification failure review()<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+        database_migrations_017_classifier_reliability_r_745dc588("record classification failure()<br/><small>database/migrations/017_classifier_reliability.sql</small>")
+    end
+    database_migrations_017_classifier_reliability_s_f32a034a("pipeline_errors")
+    database_migrations_017_classifier_reliability_s_ba8facb3 -->|reads from| database_migrations_017_classifier_reliability_v_f05ea278
+    database_migrations_017_classifier_reliability_s_ba8facb3 -->|reads from| database_migrations_017_classifier_reliability_s_f32a034a
+    database_migrations_017_classifier_reliability_849cd0da -->|contains| database_migrations_017_classifier_reliability_v_f05ea278
+    database_migrations_017_classifier_reliability_849cd0da -->|contains| database_migrations_017_classifier_reliability_m_5319891f
+    database_migrations_017_classifier_reliability_849cd0da -->|contains| database_migrations_017_classifier_reliability_s_ba8facb3
+    database_migrations_017_classifier_reliability_849cd0da -->|contains| database_migrations_017_classifier_reliability_r_9e7f1287
+    database_migrations_017_classifier_reliability_849cd0da -->|contains| database_migrations_017_classifier_reliability_r_745dc588
+    class database_migrations_017_classifier_reliability_849cd0da function;
+    class database_migrations_017_classifier_reliability_s_ba8facb3 function;
+    class database_migrations_017_classifier_reliability_v_f05ea278 function;
+    class database_migrations_017_classifier_reliability_m_5319891f function;
+    class database_migrations_017_classifier_reliability_r_9e7f1287 function;
+    class database_migrations_017_classifier_reliability_r_745dc588 function;
+    class database_migrations_017_classifier_reliability_s_f32a034a function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>017_classifier_reliability.sql</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>017_classifier_reliability.sql node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>mark_classification_completed()</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>mark_classification_completed() node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>record_classification_failure()</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>record_classification_failure() node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>resolve_classification_failure_review()</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>resolve_classification_failure_review() node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>select_classification_failure_review_candidates()</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_classification_failure_review_candidates() node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>pipeline_errors</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>pipeline_errors node in project.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>video_classification_processing_state</code><br><small style="color:var(--muted)">database/migrations/017_classifier_reliability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>video_classification_processing_state node in database/migrations/017_classifier_reliability.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/017_classifier_reliability.sql</code></td><td>6 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x5, reads from x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 9. Recommendation 010 Aisql ====== -->
+<h2 id="recommendation-010-aisql">9. Recommendation 010 Aisql</h2>
+<p>Recommendation 010 Aisql groups implementation around recommendation, 010, aisql, database, mostly in database/migrations/010_recommendation_ai.sql. This section covers 2 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Recommendation 010 Aisql (2 nodes, 1 edges)
+    database_migrations_010_recommendation_ai_373a54c8("010_recommendation_ai.sql")
+    database_migrations_010_recommendation_ai_select_7a776449("select recommendation candidates()<br/><small>database/migrations/010_recommendation_ai.sql</small>")
+    database_migrations_010_recommendation_ai_373a54c8 -->|contains| database_migrations_010_recommendation_ai_select_7a776449
+    class database_migrations_010_recommendation_ai_373a54c8 function;
+    class database_migrations_010_recommendation_ai_select_7a776449 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>010_recommendation_ai.sql</code><br><small style="color:var(--muted)">database/migrations/010_recommendation_ai.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>010_recommendation_ai.sql node in database/migrations/010_recommendation_ai.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>select_recommendation_candidates()</code><br><small style="color:var(--muted)">database/migrations/010_recommendation_ai.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>select_recommendation_candidates() node in database/migrations/010_recommendation_ai.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/010_recommendation_ai.sql</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 10. Recovery Aware 022 ====== -->
+<h2 id="recovery-aware-022">10. Recovery Aware 022</h2>
+<p>Recovery Aware 022 groups implementation around recovery, aware, 022, observabilitysql, mostly in database/migrations/022_recovery_aware_observability.sql. This section covers 2 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Recovery Aware 022 (2 nodes, 1 edges)
+    database_migrations_022_recovery_aware_observabi_9b022583("recovery aware observability.sql<br/><small>database/migrations/022_recovery_aware_observability.sql</small>")
+    database_migrations_022_recovery_aware_observabi_8bdb308a("observability recovery aware()<br/><small>database/migrations/022_recovery_aware_observability.sql</small>")
+    database_migrations_022_recovery_aware_observabi_9b022583 -->|contains| database_migrations_022_recovery_aware_observabi_8bdb308a
+    class database_migrations_022_recovery_aware_observabi_9b022583 function;
+    class database_migrations_022_recovery_aware_observabi_8bdb308a function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>022_recovery_aware_observability.sql</code><br><small style="color:var(--muted)">database/migrations/022_recovery_aware_observability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>022_recovery_aware_observability.sql node in database/migrations/022_recovery_aware_observability.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>build_pipeline_observability_recovery_aware()</code><br><small style="color:var(--muted)">database/migrations/022_recovery_aware_observability.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build_pipeline_observability_recovery_aware() node in database/migrations/022_recovery_aware_observability.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/022_recovery_aware_observability.sql</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 11. Indexessql Database ====== -->
+<h2 id="indexessql-database">11. Indexessql Database</h2>
+<p>Indexessql Database groups implementation around indexessql, database, mostly in database/indexes.sql. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Indexessql Database (1 nodes, 0 edges)
+    database_indexes_4438fdc2("indexes.sql")
+    class database_indexes_4438fdc2 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>indexes.sql</code><br><small style="color:var(--muted)">database/indexes.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>indexes.sql node in database/indexes.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/indexes.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 12. 002 Youtube Collectorsql ====== -->
+<h2 id="002-youtube-collectorsql">12. 002 Youtube Collectorsql</h2>
+<p>002 Youtube Collectorsql groups implementation around 002, youtube, collectorsql, database, mostly in database/migrations/002_youtube_collector.sql. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: 002 Youtube Collectorsql (1 nodes, 0 edges)
+    database_migrations_002_youtube_collector_b846b93d("002_youtube_collector.sql")
+    class database_migrations_002_youtube_collector_b846b93d function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>002_youtube_collector.sql</code><br><small style="color:var(--muted)">database/migrations/002_youtube_collector.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>002_youtube_collector.sql node in database/migrations/002_youtube_collector.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/002_youtube_collector.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 13. Category Statistics ====== -->
+<h2 id="category-statistics">13. Category Statistics</h2>
+<p>Category Statistics groups implementation around category, statistics, mostly in unmapped files. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Category Statistics (1 nodes, 0 edges)
+    database_migrations_008_trend_engine_sql_categor_dc2e13c0("category_statistics")
+    class database_migrations_008_trend_engine_sql_categor_dc2e13c0 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>category_statistics</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>category_statistics node in project.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td colspan="2">No source file mapping</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 14. Recommendations ====== -->
+<h2 id="recommendations">14. Recommendations</h2>
+<p>Recommendations groups implementation around recommendations, mostly in unmapped files. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Recommendations (1 nodes, 0 edges)
+    database_migrations_010_recommendation_ai_sql_re_77bd01f9("recommendations")
+    class database_migrations_010_recommendation_ai_sql_re_77bd01f9 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>recommendations</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>recommendations node in project.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td colspan="2">No source file mapping</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 15. 021 Nemotron Ultrasql ====== -->
+<h2 id="021-nemotron-ultrasql">15. 021 Nemotron Ultrasql</h2>
+<p>021 Nemotron Ultrasql groups implementation around 021, nemotron, ultrasql, database, mostly in database/migrations/021_nemotron_3_ultra.sql. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: 021 Nemotron Ultrasql (1 nodes, 0 edges)
+    database_migrations_021_nemotron_3_ultra_b877d30a("021_nemotron_3_ultra.sql")
+    class database_migrations_021_nemotron_3_ultra_b877d30a function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>021_nemotron_3_ultra.sql</code><br><small style="color:var(--muted)">database/migrations/021_nemotron_3_ultra.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>021_nemotron_3_ultra.sql node in database/migrations/021_nemotron_3_ultra.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/migrations/021_nemotron_3_ultra.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 16. Other ====== -->
+<h2 id="other">16. Other</h2>
+<p>Other groups implementation around tests, sql, database, seeds, mostly in database/seeds/categories.sql, database/seeds/collection_queries.sql, database/seeds/settings.sql. This section covers 7 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Other (7 nodes, 0 edges)
+    database_seeds_categories_72179951("categories.sql")
+    database_seeds_collection_queries_3ceb1b3c("collection_queries.sql")
+    database_seeds_settings_d361c76a("settings.sql")
+    tests_sql_nemotron_model_configuration_c87a9e07("nemotron-model-configuration.sql")
+    tests_sql_recovery_aware_observability_8633deba("recovery-aware-observability.sql")
+    tests_sql_stale_pipeline_runs_fb3c758e("stale-pipeline-runs.sql")
+    tests_sql_youtube_collector_foundation_b3a6de61("youtube-collector-foundation.sql")
+    class database_seeds_categories_72179951 function;
+    class database_seeds_collection_queries_3ceb1b3c function;
+    class database_seeds_settings_d361c76a function;
+    class tests_sql_nemotron_model_configuration_c87a9e07 test;
+    class tests_sql_recovery_aware_observability_8633deba test;
+    class tests_sql_stale_pipeline_runs_fb3c758e test;
+    class tests_sql_youtube_collector_foundation_b3a6de61 test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>categories.sql</code><br><small style="color:var(--muted)">database/seeds/categories.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>categories.sql node in database/seeds/categories.sql.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>collection_queries.sql</code><br><small style="color:var(--muted)">database/seeds/collection_queries.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>collection_queries.sql node in database/seeds/collection_queries.sql.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>settings.sql</code><br><small style="color:var(--muted)">database/seeds/settings.sql</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>settings.sql node in database/seeds/settings.sql.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>nemotron-model-configuration.sql</code><br><small style="color:var(--muted)">tests/sql/nemotron-model-configuration.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Reads, resolves, or persists project configuration.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>recovery-aware-observability.sql</code><br><small style="color:var(--muted)">tests/sql/recovery-aware-observability.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>recovery-aware-observability.sql node in tests/sql/recovery-aware-observability.sql.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>stale-pipeline-runs.sql</code><br><small style="color:var(--muted)">tests/sql/stale-pipeline-runs.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>stale-pipeline-runs.sql node in tests/sql/stale-pipeline-runs.sql.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>youtube-collector-foundation.sql</code><br><small style="color:var(--muted)">tests/sql/youtube-collector-foundation.sql</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>youtube-collector-foundation.sql node in tests/sql/youtube-collector-foundation.sql.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>database/seeds/categories.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>database/seeds/collection_queries.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>database/seeds/settings.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/nemotron-model-configuration.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/recovery-aware-observability.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/stale-pipeline-runs.sql</code></td><td>1 nodes</td></tr>
+<tr><td><code>tests/sql/youtube-collector-foundation.sql</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<h2 id="stats">Project Statistics</h2>
+
+<div class="grid">
+  <div class="card">
+    <h4>Graph</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>Nodes</td><td>165</td></tr>
+      <tr><td>Edges</td><td>200</td></tr>
+      <tr><td>Hyperedges</td><td>0</td></tr>
+      <tr><td>Communities</td><td>41</td></tr>
+      <tr><td>Documented Sections</td><td>15</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Edge Confidence</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>EXTRACTED</td><td>200</td></tr>
+      <tr><td>INFERRED</td><td>0</td></tr>
+      <tr><td>AMBIGUOUS</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
+  <p>TrendLens — Architecture Documentation</p>
+  <p>Generated: 2026-08-31 23:00 UTC · graphify callflow-html</p>
+</div>
+
+</div><!-- .container -->
+
+<script>
+(function () {
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#334155',
+      lineColor: '#64748b',
+      textColor: '#e2e8f0',
+    }
+  };
+
+  mermaid.initialize(mermaidConfig);
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function enhanceMermaidDiagrams() {
+    document.querySelectorAll('.mermaid').forEach((container) => {
+      if (container.dataset.zoomReady === 'true') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      container.dataset.zoomReady = 'true';
+      container.classList.add('is-enhanced');
+
+      const viewport = document.createElement('div');
+      viewport.className = 'mermaid-viewport';
+      svg.parentNode.insertBefore(viewport, svg);
+      viewport.appendChild(svg);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+      toolbar.innerHTML = [
+        '<button type="button" data-action="zoom-out" title="Zoom out">-</button>',
+        '<span class="zoom-level" data-role="level">100%</span>',
+        '<button type="button" data-action="zoom-in" title="Zoom in">+</button>',
+        '<button type="button" data-action="fit" title="Fit width">Fit</button>',
+        '<button type="button" data-action="reset" title="Reset view">Reset</button>'
+      ].join('');
+      container.insertBefore(toolbar, viewport);
+
+      const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+      const level = toolbar.querySelector('[data-role="level"]');
+
+      function applyTransform() {
+        svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        level.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function zoomBy(delta) {
+        state.scale = clamp(state.scale + delta, 0.25, 3);
+        applyTransform();
+      }
+
+      function reset() {
+        state.scale = 1;
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      function fitWidth() {
+        const rawWidth = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+          ? svg.viewBox.baseVal.width
+          : svg.getBoundingClientRect().width / state.scale;
+        if (!rawWidth) {
+          reset();
+          return;
+        }
+        state.scale = clamp((viewport.clientWidth - 48) / rawWidth, 0.25, 1.4);
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      toolbar.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'zoom-in') zoomBy(0.15);
+        if (action === 'zoom-out') zoomBy(-0.15);
+        if (action === 'fit') fitWidth();
+        if (action === 'reset') reset();
+      });
+
+      viewport.addEventListener('wheel', (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+
+      viewport.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        state.dragging = true;
+        state.startX = event.clientX;
+        state.startY = event.clientY;
+        state.originX = state.x;
+        state.originY = state.y;
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (event) => {
+        if (!state.dragging) return;
+        state.x = state.originX + event.clientX - state.startX;
+        state.y = state.originY + event.clientY - state.startY;
+        applyTransform();
+      });
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+        state.dragging = false;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
+      applyTransform();
+    });
+  }
+
+  function renderMermaid() {
+    const result = mermaid.run
+      ? mermaid.run({ querySelector: '.mermaid' })
+      : Promise.resolve();
+    Promise.resolve(result)
+      .then(enhanceMermaidDiagrams)
+      .catch((error) => {
+        console.error('Mermaid render failed:', error);
+        enhanceMermaidDiagrams();
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
+  } else {
+    renderMermaid();
+  }
+})();
+</script>
+
+</body>
+</html>
